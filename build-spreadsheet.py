@@ -9,12 +9,14 @@ import pandas as pd
 import yaml
 import os
 import utils.flatten_toc as f 
+import dotenv
 
-# Modify these paths as needed
-toc_file = "C:/GitPrivate/azure-ai-docs-pr/articles/ai-services/agents/toc.yml"  # your local repo
-url_path = "https://learn.microsoft.com/azure/ai-services/agents"  # base URL for the articles
-output_file = "agents.csv"  # output file name
-## end of user-modifiable section
+# Load environment variables from .env file
+dotenv.load_dotenv()
+
+toc_file = os.getenv("TOC_FILE")  # path to the TOC YAML file
+url_path = os.getenv("URL_PATH")  # base URL for the articles
+output_file = os.getenv("OUTPUT_FILE")  # output file name
 
 # Get the directory of the current script, write the output file in the same directory
 script_dir = os.path.dirname(os.path.abspath(__file__))

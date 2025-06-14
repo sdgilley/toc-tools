@@ -4,8 +4,13 @@ import os
 import time
 import utils.summarize_doc as sd
 from tqdm import tqdm
+import dotenv
 
-csv_file = "agents.csv"  # CSV file containing URLs to summarize
+# Load environment variables from .env file
+dotenv.load_dotenv()
+
+
+csv_file = os.getenv("OUTPUT_FILE")  # CSV file containing URLs to summarize
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # append the script directory to the file path

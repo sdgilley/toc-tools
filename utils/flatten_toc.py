@@ -13,7 +13,8 @@ def flatten_toc(items, url_path, parent_path=None):
         if not href:
             url = f"{url_path}/{name.replace(' ', '-').lower()}"
         elif href.startswith(".."):
-            url = f"https://learn.microsoft.com/{href[3:].replace('.md', '').replace('.yml', '')}"
+            
+            url = f"{url_path}/{href.replace('.md', '').replace('.yml', '')}"
             otherToc = "true"
         elif href.startswith("/"):
             url = f"https://learn.microsoft.com/{href.replace('.md', '').replace('.yml', '')}"

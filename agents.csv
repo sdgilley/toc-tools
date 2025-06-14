@@ -32,13 +32,13 @@ Concepts > Tools > Azure Functions,How to use Azure Functions,how-to/tools/azure
 Concepts > Tools > SharePoint,Overview,how-to/tools/sharepoint.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/tools/sharepoint
 Concepts > Tools > SharePoint,How to use SharePoint,how-to/tools/sharepoint-samples.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/tools/sharepoint-samples
 Concepts > Enterprise features,Use your own resources,how-to/use-your-own-resources.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/use-your-own-resources
-Concepts > Enterprise features,Content filtering,../openai/how-to/content-filters.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/openai/how-to/content-filters?context=/azure/ai-services/agents/context/context
+Concepts > Enterprise features,Content filtering,../openai/how-to/content-filters.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/azure/ai-services/agents/../openai/how-to/content-filters?context=/azure/ai-services/agents/context/context
 Concepts > Enterprise features,Use virtual networks,how-to/virtual-networks.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/virtual-networks
 Concepts > Multi-agent workflows,Connected agents,how-to/connected-agents.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/connected-agents
 Concepts > Multi-agent workflows,Processes,/semantic-kernel/frameworks/process/process-framework,true,https://learn.microsoft.com//semantic-kernel/frameworks/process/process-framework
 Concepts,Agent catalog,concepts/agent-catalog.md,false,https://learn.microsoft.com/azure/ai-services/agents/concepts/agent-catalog
 How-to,Trigger an agent using Logic Apps,how-to/triggers.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/triggers
-How-to,Use the Visual Studio Code extension,../../ai-foundry/how-to/develop/vs-code-agents.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/../ai-foundry/how-to/develop/vs-code-agents?context=/azure/ai-services/agents/context/context
+How-to,Use the Visual Studio Code extension,../../ai-foundry/how-to/develop/vs-code-agents.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/azure/ai-services/agents/../../ai-foundry/how-to/develop/vs-code-agents?context=/azure/ai-services/agents/context/context
 Observability,Service monitoring,how-to/metrics.md,false,https://learn.microsoft.com/azure/ai-services/agents/how-to/metrics
 Observability,Trace and observe agents,concepts/tracing.md,false,https://learn.microsoft.com/azure/ai-services/agents/concepts/tracing
 Responsible AI,Transparency note,/legal/cognitive-services/agents/transparency-note?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com//legal/cognitive-services/agents/transparency-note?context=/azure/ai-services/agents/context/context
@@ -48,5 +48,5 @@ Reference > SDK,C#,/dotnet/api/overview/azure/ai.agents.persistent-readme,true,h
 Reference > SDK,Python,https://aka.ms/azsdk/azure-ai-projects/python/reference,false,https://learn.microsoft.com/azure/ai-services/agents/https://aka.ms/azsdk/azure-ai-projects/python/reference
 Reference > SDK,JavaScript,/javascript/api/overview/azure/ai-projects-readme,true,https://learn.microsoft.com//javascript/api/overview/azure/ai-projects-readme
 Reference,Data monitoring reference,reference/monitor-service.md,false,https://learn.microsoft.com/azure/ai-services/agents/reference/monitor-service
-Resources,Support and help options,../cognitive-services-support-options.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/cognitive-services-support-options?context=/azure/ai-services/agents/context/context
+Resources,Support and help options,../cognitive-services-support-options.md?context=/azure/ai-services/agents/context/context,true,https://learn.microsoft.com/azure/ai-services/agents/../cognitive-services-support-options?context=/azure/ai-services/agents/context/context
 Resources,Terms of use,https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure/MCA#ServiceSpecificTerms,false,https://learn.microsoft.com/azure/ai-services/agents/https://www.microsoft.com/licensing/terms/productoffering/MicrosoftAzure/MCA#ServiceSpecificTerms
