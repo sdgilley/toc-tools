@@ -1,0 +1,10 @@
+# This file is used to set environment variables 
+# Set these to correspond with the TOC you want to inventory and the file you want to create
+TOC_FILE=C:/Git/azure-ai-docs-pr/articles/ai-services/agents/toc.yml
+URL_PATH=https://learn.microsoft.com/azure/ai-services/agents
+OUTPUT_FILE=agents.csv
+
+# Set these to use an AI Foundry model to summarize files 
+# Get these values from AI Foundry
+DEPLOYMENT_NAME=gpt-4.1-mini
+ENDPOINT_URL="add your endpoint here"
