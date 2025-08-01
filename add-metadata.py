@@ -127,18 +127,24 @@ def add_metadata_to_csv():
                 for pivot_group in pivot_groups:
                     discovered_pivot_groups.add(pivot_group)
             
-            # Check for hub-only in custom metadata
-            if 'custom' in metadata:
-                custom_data = metadata['custom']
+            # Check for hub-only in ms.custom metadata
+            hub_only_found = False
+            
+            # Check 'ms.custom' field
+            if 'ms.custom' in metadata:
+                custom_data = metadata['ms.custom']
                 if isinstance(custom_data, str):
-                    # If custom is a string, check if it contains 'hub-only'
-                    df.at[index, 'hub-only'] = 'hub-only' in custom_data.lower()
+                    # If ms.custom is a string, check if it contains 'hub-only'
+                    hub_only_found = 'hub-only' in custom_data.lower()
                 elif isinstance(custom_data, list):
-                    # If custom is a list, check if any item contains 'hub-only'
-                    df.at[index, 'hub-only'] = any('hub-only' in str(item).lower() for item in custom_data)
+                    # If ms.custom is a list, check if any item contains 'hub-only'
+                    hub_only_found = any('hub-only' in str(item).lower() for item in custom_data)
                 elif isinstance(custom_data, dict):
-                    # If custom is a dict, check if any value contains 'hub-only'
-                    df.at[index, 'hub-only'] = any('hub-only' in str(value).lower() for value in custom_data.values())
+                    # If ms.custom is a dict, check if any value contains 'hub-only'
+                    hub_only_found = any('hub-only' in str(value).lower() for value in custom_data.values())
+            
+            # Set the hub-only flag
+            df.at[index, 'hub-only'] = hub_only_found
             
             processed_files += 1
     

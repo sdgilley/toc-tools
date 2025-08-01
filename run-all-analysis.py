@@ -100,51 +100,14 @@ def show_output_files():
     print("OUTPUT FILES CREATED:")
     print(f"{'='*60}")
     
-    # Get output file names from environment variables
-    output_file = os.getenv("OUTPUT_FILE", "toc.csv")
-    metadata_output = os.getenv("METADATA_OUTPUT_FILE", "toc_with_metadata.csv")
-    content_output = os.getenv("CONTENT_OUTPUT_FILE", "toc_with_content.csv")
-    
+    # In pipeline mode, we use the base output file for everything
+    base_output_file = os.getenv("OUTPUT_FILE", "toc.csv")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Create list of files to check - only show unique files
-    files_to_check = []
-    unique_files = set()
-    
-    # Determine the final description based on what files are the same
-    if output_file == metadata_output == content_output:
-        # All three steps use the same file
-        files_to_check.append((output_file, "Complete TOC with all analysis (build + metadata + content)"))
-        unique_files.add(output_file)
-    elif output_file == metadata_output:
-        # Build and metadata use same file, content is different
-        files_to_check.append((output_file, "TOC with metadata"))
-        unique_files.add(output_file)
-        if content_output not in unique_files:
-            files_to_check.append((content_output, "TOC with content analysis"))
-            unique_files.add(content_output)
-    elif metadata_output == content_output:
-        # Metadata and content use same file, build is different
-        files_to_check.append((output_file, "Initial TOC spreadsheet"))
-        unique_files.add(output_file)
-        if metadata_output not in unique_files:
-            files_to_check.append((metadata_output, "TOC with metadata and content analysis"))
-            unique_files.add(metadata_output)
-    else:
-        # All files are different
-        files_to_check.append((output_file, "Initial TOC spreadsheet"))
-        unique_files.add(output_file)
-        if metadata_output not in unique_files:
-            files_to_check.append((metadata_output, "TOC with metadata"))
-            unique_files.add(metadata_output)
-        if content_output not in unique_files:
-            files_to_check.append((content_output, "TOC with content analysis"))
-            unique_files.add(content_output)
-    
-    # Always check for pivot file based on metadata output
-    pivot_file = metadata_output.replace('.csv', '-pivots.csv')
-    if pivot_file != metadata_output and pivot_file not in unique_files:
-        files_to_check.append((pivot_file, "Pivot groups (if created)"))
+    files_to_check = [
+        (base_output_file, "Complete TOC with all analysis (build + metadata + content)"),
+        (base_output_file.replace('.csv', '-pivots.csv'), "Pivot groups (if created)")
+    ]
     
     for filename, description in files_to_check:
         filepath = os.path.join(script_dir, filename)
@@ -181,6 +144,18 @@ def main():
     # Check environment configuration
     if not check_environment():
         sys.exit(1)
+    
+    # Override environment variables for unified pipeline workflow
+    # Each step will build on the previous step using the same file
+    base_output_file = os.getenv("OUTPUT_FILE", "toc.csv")
+    print(f"📝 Setting unified output file: {base_output_file}")
+    print("   (Each step will enhance the same file)")
+    
+    # Set environment variables for the pipeline run
+    os.environ["METADATA_FILE"] = base_output_file  # Metadata script reads from build output
+    os.environ["METADATA_OUTPUT_FILE"] = base_output_file  # Metadata script writes to same file
+    os.environ["CONTENT_FILE"] = base_output_file  # Content script reads from metadata output
+    os.environ["CONTENT_OUTPUT_FILE"] = base_output_file  # Content script writes to same file
     
     steps_run = 0
     steps_failed = 0

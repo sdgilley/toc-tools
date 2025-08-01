@@ -87,7 +87,10 @@ For convenience, you can run all three steps (build spreadsheet, add metadata, a
     * URL_PATH - <https://learn.microsoft.com/> path to the homepage for your toc
     * OUTPUT_FILE - file you want to create for the initial spreadsheet
     * BASE_PATH - the root directory where your markdown files are located
-    * METADATA_OUTPUT_FILE - enhanced CSV with metadata (optional)
+    * METADATA_OUTPUT_FILE - enhanced CSV with metadata (for individual script runs)
+    * CONTENT_OUTPUT_FILE - final CSV with content analysis (for individual script runs)
+
+**Note:** When using `run-all-analysis.py`, the pipeline automatically overrides the output file settings to use a unified workflow where each step enhances the same file (OUTPUT_FILE). When running scripts individually, each creates its own separate output file as configured in your .env.
     * CONTENT_OUTPUT_FILE - final CSV with content analysis (optional)
 
 ### Run complete analysis
