@@ -107,12 +107,44 @@ def show_output_files():
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    files_to_check = [
-        (output_file, "Initial TOC spreadsheet"),
-        (metadata_output, "TOC with metadata"),
-        (content_output, "TOC with content analysis"),
-        (metadata_output.replace('.csv', '-pivots.csv'), "Pivot groups (if created)")
-    ]
+    # Create list of files to check - only show unique files
+    files_to_check = []
+    unique_files = set()
+    
+    # Determine the final description based on what files are the same
+    if output_file == metadata_output == content_output:
+        # All three steps use the same file
+        files_to_check.append((output_file, "Complete TOC with all analysis (build + metadata + content)"))
+        unique_files.add(output_file)
+    elif output_file == metadata_output:
+        # Build and metadata use same file, content is different
+        files_to_check.append((output_file, "TOC with metadata"))
+        unique_files.add(output_file)
+        if content_output not in unique_files:
+            files_to_check.append((content_output, "TOC with content analysis"))
+            unique_files.add(content_output)
+    elif metadata_output == content_output:
+        # Metadata and content use same file, build is different
+        files_to_check.append((output_file, "Initial TOC spreadsheet"))
+        unique_files.add(output_file)
+        if metadata_output not in unique_files:
+            files_to_check.append((metadata_output, "TOC with metadata and content analysis"))
+            unique_files.add(metadata_output)
+    else:
+        # All files are different
+        files_to_check.append((output_file, "Initial TOC spreadsheet"))
+        unique_files.add(output_file)
+        if metadata_output not in unique_files:
+            files_to_check.append((metadata_output, "TOC with metadata"))
+            unique_files.add(metadata_output)
+        if content_output not in unique_files:
+            files_to_check.append((content_output, "TOC with content analysis"))
+            unique_files.add(content_output)
+    
+    # Always check for pivot file based on metadata output
+    pivot_file = metadata_output.replace('.csv', '-pivots.csv')
+    if pivot_file != metadata_output and pivot_file not in unique_files:
+        files_to_check.append((pivot_file, "Pivot groups (if created)"))
     
     for filename, description in files_to_check:
         filepath = os.path.join(script_dir, filename)
