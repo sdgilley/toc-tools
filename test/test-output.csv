@@ -1,0 +1,10 @@
+Parent Path,Name,Href,OtherTOC,URL
+,Introduction,intro.md,false,https://learn.microsoft.com/test/intro
+,Getting Started,getting-started.md,false,https://learn.microsoft.com/test/getting-started
+Advanced Topics,Advanced Concepts,advanced/concepts.md,false,https://learn.microsoft.com/test/advanced/concepts
+Advanced Topics,Performance Tuning,advanced/performance.md,false,https://learn.microsoft.com/test/advanced/performance
+Advanced Topics > Troubleshooting,Common Issues,advanced/common-issues.md,false,https://learn.microsoft.com/test/advanced/common-issues
+Advanced Topics > Troubleshooting,Debug Mode,advanced/debug.md,false,https://learn.microsoft.com/test/advanced/debug
+API Reference,Core API,api/core.md,false,https://learn.microsoft.com/test/api/core
+API Reference > Extensions,Plugin System,extensions/plugins.md,false,https://learn.microsoft.com/test/extensions/plugins
+API Reference > Extensions,Custom Extensions,extensions/custom.md,false,https://learn.microsoft.com/test/extensions/custom

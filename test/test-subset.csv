@@ -1,0 +1,3 @@
+Parent Path,Name,Href,OtherTOC,URL,ms.author,description,pivot,pivot_groups,hub-only,file_found
+Models > Develop with AI models,Supported programming languages and SDKs,../ai-services/openai/supported-languages.md?context=/azure/ai-foundry/context/context,True,https://learn.microsoft.com/azure/ai-services/openai/supported-languages?context=/azure/ai-foundry/context/context,,,,,False,False
+AI services,Use Azure AI services in Azure AI Foundry portal,../ai-services/connect-services-ai-foundry-portal.md?context=/azure/ai-foundry/context/context,True,https://learn.microsoft.com/azure/ai-services/connect-services-ai-foundry-portal?context=/azure/ai-foundry/context/context,,,,,False,False

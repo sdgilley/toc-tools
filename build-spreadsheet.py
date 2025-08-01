@@ -26,9 +26,12 @@ file_path = os.path.join(script_dir, output_file)
 with open(toc_file, 'r', encoding='utf-8') as file:
     toc = yaml.safe_load(file)
 
+# Get the directory of the TOC file for resolving relative paths to nested TOCs
+toc_dir = os.path.dirname(os.path.abspath(toc_file))
+
 # Flatten the TOC structure
 toc_items = toc.get("items", [])
-flattened_toc = f.flatten_toc(toc_items, url_path)
+flattened_toc = f.flatten_toc(toc_items, url_path, base_toc_dir=toc_dir)
 
 # Convert the flattened TOC to a DataFrame
 toc_df = pd.DataFrame(flattened_toc)

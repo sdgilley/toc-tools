@@ -1,0 +1,11 @@
+items:
+  - name: "Advanced Concepts"
+    href: "concepts.md"
+  - name: "Performance Tuning"
+    href: "performance.md"
+  - name: "Troubleshooting"
+    items:
+      - name: "Common Issues"
+        href: "common-issues.md"
+      - name: "Debug Mode"
+        href: "debug.md"

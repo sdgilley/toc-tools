@@ -2,7 +2,7 @@
 
 tools to help inventory and organize a toc
 
-## Setup for Python
+### Initial setup for toc-tools
 
 To run any of the scripts in this repo, first follow these steps.
 
@@ -21,62 +21,99 @@ To run any of the scripts in this repo, first follow these steps.
 
 1. Rename the **env-sample.txt** file in this repo to **.env**
 
-1. Modify the values for:
-    * TOC_FILE - the path to the TOC file you want to use (in your local repo)
-    * URL_PATH - base URL for the files in that TOC file
-    * OUTPUT_FILE - the name of the CSV file you want to use
+1. Modify the values as described in following sections.
 
-## Build a CSV file showing all the files in your TOC
+
+## Step 1: Build a CSV file showing all the files in your TOC
 
 This script runs quickly, even for large TOCs.  It creates a spreadsheet showing the TOC structure along with the file name and URL.  
 
-1. Create the spreadsheet:
+### Setup for build spreadsheet
+
+1. In your **.env** file, add:
+
+    * TOC_FILE - local path to your toc file
+    * URL_PATH - https://learn.microsoft.com/  path to the homepage for your toc
+    * OUTPUT_FILE= - file you want to create
+
+### Build the spreadsheet
+
+1. Build the spreadsheet:
 
     ```bash
     python build-spreadsheet.py
     ```
 
-## Add summaries with Foundry Models
+This script will:
+    - Read the initial toc file (this is a local file, make sure you're on the branch you want results for)
+    - Iterate through any nested toc files if found
+    - Flatten the toc structure into a single entry per item
+    - Create a CSV file with results
 
-Use an Azure AI Foundry model to summarize each of the files in your spreadsheet.  This script takes awhile to run, so make sure you've looked at the CSV file first to make sure the URLs are correct.
 
-Here are some benchmarks:
+## Step 2: Add metadata from files
 
-* TOC with 51 files, approximately 15 minutes.  
+Extract metadata from the front matter of markdown files and add it to your spreadsheet. This script reads each file referenced in your CSV and extracts `ms.author`, `ms.topic`, `author`, `description`,  `pivot` (zone_pivot_groups), and `hub-only` metadata. This also uses local files.
 
-You may also run into rate limits.  Not sure I know what to do about that.  
+### Setup for metadata extraction
 
-### Setup for Founry Models
+1. In your **.env** file, add:
+    * BASE_PATH - the root directory where your markdown files are located
+    * METADATA_OUTPUT_FILE - the name of the enhanced CSV file (optional, defaults to toc_with_metadata.csv)
 
-Now deploy a model in Foundry:
+### Extract metadata
 
-1. Sign in to Azure AI Foundry (https://ai.azure.com).
-1. Create or select a project.
-1. Select a model to use for summaries.  I used **gpt-4.1-mini**.  Set the TPM to the maximum you can when you deploy the model.  
-1. On the models page, copy the ENDPOINT value, and add it to your **.env** file.
-    !Note: If the URL you copy is long, delete everything after *azure.com/
-1. If you use a different model name, replace the current value it to the **.env** file as well.
+1. To add metadata to your spreadsheet:
 
-### Add summaries for each file
+    ```bash
+    python add-metadata.py
+    ```
 
-1. To add AI generated summaries to the entries in your spreadsheet:  
+    This script will:
+    - Read your existing CSV file
+    - Look up each markdown file based on the Href column
+    - Extract YAML front matter metadata
+    - Add columns for ms.author, ms.topic, description, pivot, pivot groups, and file_found
+    - Create an enhanced CSV with the metadata
 
-    1. Log in to the same account used in Azure AI Foundry:
+## Run Complete Analysis Pipeline
 
-        ```bash
-        az login
-        ```
+For convenience, you can run all three steps (build spreadsheet, add metadata, add content analysis) with a single command using the comprehensive pipeline script.
 
-    1. *Test*: Once you're logged in, make sure the summarize file works correctly.
+### Setup for complete pipeline
 
-        ```bash
-        python utils/summarize_doc.py
-        ```
+1. Ensure your **.env** file has all required variables:
+    * TOC_FILE - local path to your toc file
+    * URL_PATH - <https://learn.microsoft.com/> path to the homepage for your toc
+    * OUTPUT_FILE - file you want to create for the initial spreadsheet
+    * BASE_PATH - the root directory where your markdown files are located
+    * METADATA_OUTPUT_FILE - enhanced CSV with metadata (optional)
+    * CONTENT_OUTPUT_FILE - final CSV with content analysis (optional)
 
-    1. Add summaries to every row in your spreadsheet:
+### Run complete analysis
 
-        ```bash
-        python add-summaries.py
-        ```
+1. To run the complete pipeline:
 
-        !NOTE: this script calls your deployed model for each file.  It will take some time. For a TOC with 51 files, it took approximately 15 minutes.
+    ```bash
+    python run-all-analysis.py
+    ```
+
+    Or to skip specific steps:
+
+    ```bash
+    python run-all-analysis.py --skip-content    # Skip content analysis
+    python run-all-analysis.py --skip-metadata   # Skip metadata extraction
+    python run-all-analysis.py --skip-build      # Skip initial build
+    ```
+
+    This script will:
+    * Run build-spreadsheet.py to create the initial TOC spreadsheet
+    * Run add-metadata.py to extract metadata from markdown files
+    * Run add-content-analysis.py to analyze content for tabs and images
+    * Show a summary of all created files
+    * Provide detailed progress and error reporting for each step
+
+
+
+
+
