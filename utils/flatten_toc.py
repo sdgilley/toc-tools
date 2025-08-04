@@ -66,30 +66,68 @@ def flatten_toc(items, url_path, parent_path=None, base_toc_dir=None):
                     print(f"Warning: Could not load nested TOC file {nested_toc_path}: {e}")
                     # Fall through to add the TOC reference as a regular item
 
+        # Normalize href to show path relative to articles directory (add ai-foundry prefix for local files)
+        normalized_href = href
+        if href and href.startswith(".."):
+            # For hrefs that go up directories, normalize to show the final path
+            # relative to the articles base directory
+            href_parts = href.split('/')
+            
+            # Count levels up and get remaining path
+            up_levels = 0
+            remaining_parts = []
+            for part in href_parts:
+                if part == '..':
+                    up_levels += 1
+                elif part:
+                    remaining_parts.append(part)
+            
+            # Create normalized href showing path from articles directory
+            if remaining_parts:
+                normalized_href = '/'.join(remaining_parts)
+                # Remove context parameter from href only
+                if '?context=' in normalized_href:
+                    normalized_href = normalized_href.split('?context=')[0]
+        elif href and not href.startswith(("http", "/", "..")):
+            # For local files that don't start with .., add ai-foundry prefix
+            normalized_href = f"ai-foundry/{href}"
+            # Remove context parameter if present
+            if '?context=' in normalized_href:
+                normalized_href = normalized_href.split('?context=')[0]
+        
         # Generate URL based on the rules
         if not href:
             url = f"{url_path}/{name.replace(' ', '-').lower()}"
         elif href.startswith(".."):
             # Handle relative paths that go up directories
-            # Remove the file extension first
+            # Remove the file extension first but keep context for URL
             clean_href = href.replace('.md', '').replace('.yml', '')
-            # Use os.path.normpath to resolve the .. paths, then convert to URL format
-            url_path_parts = url_path.rstrip('/').split('/')
+            
+            # Resolve the relative path and make it relative to the base URL
+            # Split the href into parts (before removing context)
             href_parts = clean_href.split('/')
             
-            # Start with the URL path parts
-            result_parts = url_path_parts[:]
-            
-            # Process each part of the href
+            # Count how many levels up we need to go
+            up_levels = 0
+            remaining_parts = []
             for part in href_parts:
                 if part == '..':
-                    # Go up one level if possible
-                    if len(result_parts) > 3:  # Keep https://learn.microsoft.com at minimum
-                        result_parts.pop()
+                    up_levels += 1
                 elif part:  # Skip empty parts
-                    result_parts.append(part)
+                    remaining_parts.append(part)
             
-            url = '/'.join(result_parts)
+            # Check if this points to ai-services (outside ai-foundry)
+            if remaining_parts and remaining_parts[0] == 'ai-services':
+                # For ai-services, use the Microsoft Learn base URL without ai-foundry
+                relative_path = '/'.join(remaining_parts)
+                url = f"https://learn.microsoft.com/azure/{relative_path}"
+            else:
+                # For other relative paths, stay within the base URL_PATH context
+                if remaining_parts:
+                    relative_path = '/'.join(remaining_parts)
+                    url = f"{url_path.rstrip('/')}/{relative_path}"
+                else:
+                    url = url_path.rstrip('/')
             otherToc = "True"
         elif href.startswith("/"):
             url = f"https://learn.microsoft.com{href.replace('.md', '').replace('.yml', '')}"
@@ -98,7 +136,7 @@ def flatten_toc(items, url_path, parent_path=None, base_toc_dir=None):
             url = f"{url_path}/{href.replace('.md', '').replace('.yml', '')}"
             otherToc = "False"
         
-        rows.append({"Parent Path": parent, "Name": name, "Href": href, "OtherTOC": otherToc, "URL": url})
+        rows.append({"Parent Path": parent, "Name": name, "Href": normalized_href, "OtherTOC": otherToc, "URL": url})
         if "items" in item:
             rows.extend(flatten_toc(item["items"], url_path, current_path, base_toc_dir))
     return rows
