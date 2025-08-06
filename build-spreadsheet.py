@@ -29,9 +29,22 @@ with open(toc_file, 'r', encoding='utf-8') as file:
 # Get the directory of the TOC file for resolving relative paths to nested TOCs
 toc_dir = os.path.dirname(os.path.abspath(toc_file))
 
+# Calculate the TOC relative directory (relative to the base articles directory)
+base_path = os.getenv("BASE_PATH")
+if base_path:
+    # Get the relative path from base_path to toc_dir
+    toc_relative_dir = os.path.relpath(toc_dir, base_path)
+    # Convert backslashes to forward slashes for consistency
+    toc_relative_dir = toc_relative_dir.replace("\\", "/")
+    # Handle case where TOC is in the base directory itself
+    if toc_relative_dir == ".":
+        toc_relative_dir = None
+else:
+    toc_relative_dir = None
+
 # Flatten the TOC structure
 toc_items = toc.get("items", [])
-flattened_toc = f.flatten_toc(toc_items, url_path, base_toc_dir=toc_dir)
+flattened_toc = f.flatten_toc(toc_items, url_path, base_toc_dir=toc_dir, toc_relative_dir=toc_relative_dir)
 
 # Convert the flattened TOC to a DataFrame
 toc_df = pd.DataFrame(flattened_toc)

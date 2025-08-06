@@ -43,11 +43,6 @@ def resolve_file_path(href, base_path):
         full_path = os.path.normpath(os.path.join(base_path, href))
     else:
         # Regular relative path
-        # Check if the href starts with the same directory name as the base path ends with
-        base_dir_name = os.path.basename(base_path)
-        if href.startswith(f"{base_dir_name}/"):
-            # Remove the redundant directory prefix
-            href = href[len(f"{base_dir_name}/"):]
         full_path = os.path.join(base_path, href)
     
     # Ensure it's a markdown file if it doesn't already have an extension
