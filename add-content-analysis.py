@@ -41,7 +41,8 @@ def analyze_content(file_path):
                 'tab_formats': [],
                 'has_images': False,
                 'image_count': 0,
-                'image_formats': []
+                'image_formats': [],
+                'portal_steps': False
             }
         
         analysis = {
@@ -50,7 +51,8 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': []
+            'image_formats': [],
+            'portal_steps': False
         }
         
         # Look for tab formats: #tab/xxx
@@ -91,6 +93,25 @@ def analyze_content(file_path):
                 if ext and ext not in analysis['image_formats']:
                     analysis['image_formats'].append(ext)
         
+        # Look for portal steps: numbered lines like "1. Step one", "2. Step two"
+        # Pattern looks for lines that start with a number followed by a period and space
+        step_pattern = r'^\s*\d+\.\s+'
+        lines = content.split('\n')
+        numbered_lines = [line for line in lines if re.match(step_pattern, line)]
+        
+        # Consider it portal steps if we have at least 2 consecutive numbered items
+        if len(numbered_lines) >= 2:
+            # Check if we have a sequence starting from 1
+            first_numbers = []
+            for line in numbered_lines[:5]:  # Check first 5 to see if we have 1, 2, 3...
+                match = re.match(r'^\s*(\d+)\.\s+', line)
+                if match:
+                    first_numbers.append(int(match.group(1)))
+            
+            # If we start with 1 and have at least 2 consecutive numbers, it's likely portal steps
+            if first_numbers and first_numbers[0] == 1 and len(first_numbers) >= 2:
+                analysis['portal_steps'] = True
+        
         return analysis
         
     except Exception as e:
@@ -101,7 +122,8 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': []
+            'image_formats': [],
+            'portal_steps': False
         }
 
 def add_content_analysis_to_csv():
@@ -141,6 +163,7 @@ def add_content_analysis_to_csv():
     df['has_images'] = False
     df['image_count'] = 0
     df['image_formats'] = ""
+    df['portal_steps'] = False
     
     # Process each row
     total_rows = len(df)
@@ -169,6 +192,7 @@ def add_content_analysis_to_csv():
                 df.at[index, 'has_images'] = analysis['has_images']
                 df.at[index, 'image_count'] = analysis['image_count']
                 df.at[index, 'image_formats'] = ', '.join(analysis['image_formats']) if analysis['image_formats'] else ""
+                df.at[index, 'portal_steps'] = analysis['portal_steps']
                 
                 analyzed_files += 1
                 
@@ -186,6 +210,7 @@ def add_content_analysis_to_csv():
     # Show content analysis statistics
     files_with_tabs = len(df[df['has_tabs'] == True])
     files_with_images = len(df[df['has_images'] == True])
+    files_with_portal_steps = len(df[df['portal_steps'] == True])
     total_tabs = df['tab_count'].sum()
     total_images = df['image_count'].sum()
     
@@ -194,6 +219,7 @@ def add_content_analysis_to_csv():
     print(f"Total tab instances: {total_tabs}")
     print(f"Files with images: {files_with_images}")
     print(f"Total image instances: {total_images}")
+    print(f"Files with portal steps: {files_with_portal_steps}")
     
     # Show most common tab formats
     if files_with_tabs > 0:
