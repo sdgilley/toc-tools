@@ -104,9 +104,50 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
                         processed_href = f"{toc_relative_dir}/{processed_href}"
                 else:
                     # Not a relative path, check if we need to add the directory prefix
-                    if toc_relative_dir and not href.startswith(toc_relative_dir + "/"):
+                    # Determine if this path should be at the root level (same level as current toc directory)
+                    should_add_prefix = True
+                    if toc_relative_dir:
+                        # Check if the href already starts with the toc_relative_dir
+                        if href.startswith(toc_relative_dir + "/"):
+                            should_add_prefix = False
+                        else:
+                            # Check if this href represents a sibling directory to the current toc location
+                            # For example: if toc_relative_dir is "ai-foundry" and href is "ai-services/something",
+                            # then "ai-services" is a sibling to "ai-foundry" and shouldn't get the prefix
+                            
+                            # Count directory levels in toc_relative_dir 
+                            # Note: toc_relative_dir shows depth from /articles/, but the TOC file itself
+                            # may be deeper (e.g., in a subdirectory). We need to account for the actual
+                            # file location depth, not just the directory name depth.
+                            toc_depth = len([p for p in toc_relative_dir.split('/') if p])
+                            
+                            # Check the depth that this href represents
+                            href_parts = [p for p in href.split('/') if p]
+                            if len(href_parts) > 0:
+                                # If href appears to be at the same level as the TOC's parent directory
+                                # (i.e., both are immediate children of articles/), don't add prefix
+                                # This is detected when href starts with what looks like a top-level directory name
+                                # and the path depth suggests it's at the root articles level
+                                
+                                # Simple heuristic: if toc_relative_dir represents a top-level service directory
+                                # and href looks like it's also a top-level service directory (like "ai-services/..."), 
+                                # then they're siblings and href shouldn't get the prefix
+                                if toc_depth >= 1:  # We're in a service directory or deeper
+                                    # We're in a service directory, check if href is also a top-level service
+                                    # by seeing if it doesn't already contain our toc directory
+                                    first_href_part = href_parts[0]
+                                    toc_first_part = toc_relative_dir.split('/')[0]
+                                    # Only consider this a sibling if the href actually represents a different service
+                                    # (i.e., it's not just a subdirectory within the current service)
+                                    # Known sibling services that should use their own URLs:
+                                    known_sibling_services = ["ai-services", "ai-search", "ai-studio"]
+                                    if (first_href_part != toc_first_part and 
+                                        first_href_part in known_sibling_services):
+                                        # This is a known sibling service, don't add prefix
+                                        should_add_prefix = False
+                    
+                    if should_add_prefix and toc_relative_dir:
                         processed_href = f"{toc_relative_dir}/{href}"
-                        # print(f"Adding prefix: {href} -> {processed_href}")
                     else:
                         processed_href = href
         else:
@@ -118,7 +159,33 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
             if is_external:
                 full_url = href
             else:
-                full_url = f"{url_path.rstrip('/')}/{processed_href.lstrip('/')}"
+                # New approach: construct URL based on the normalized path after /articles/
+                # The processed_href already represents the path relative to /articles/
+                
+                # Check if this path represents a sibling directory to the current TOC location
+                is_sibling_directory = False
+                if toc_relative_dir:
+                    path_parts = [p for p in processed_href.split('/') if p]
+                    if len(path_parts) > 0:
+                        first_part = path_parts[0]
+                        toc_first_part = toc_relative_dir.split('/')[0]
+                        # If the first part of the path is different from the TOC directory,
+                        # and it contains subdirectories, this is likely a sibling directory
+                        if first_part != toc_first_part and "/" in processed_href:
+                            is_sibling_directory = True
+                
+                if is_sibling_directory:
+                    # This is a sibling directory (like ai-services from ai-foundry TOC)
+                    full_url = f"https://learn.microsoft.com/azure/{processed_href.lstrip('/')}"
+                else:
+                    # This is a regular file in the current service directory
+                    if toc_relative_dir:
+                        # Ensure the path includes the service directory if it doesn't already
+                        if not processed_href.startswith(toc_relative_dir + "/") and not processed_href.startswith(toc_relative_dir.split('/')[-1] + "/"):
+                            # For simple filenames, add the toc directory prefix
+                            if "/" not in processed_href:
+                                processed_href = f"{toc_relative_dir}/{processed_href}"
+                    full_url = f"https://learn.microsoft.com/azure/{processed_href.lstrip('/')}"
             
             rows.append({
                 "Parent Path": parent_path,

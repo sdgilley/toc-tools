@@ -106,7 +106,8 @@ def show_output_files():
     
     files_to_check = [
         (base_output_file, "Complete TOC with all analysis (build + metadata + content)"),
-        (base_output_file.replace('.csv', '-pivots.csv'), "Pivot groups (if created)")
+        (base_output_file.replace('.csv', '-pivots.csv'), "Pivot groups (if created)"),
+        (base_output_file.replace('.csv', '.xlsx'), "Excel analysis file (if created)")
     ]
     
     for filename, description in files_to_check:
@@ -133,6 +134,8 @@ def main():
                         help='Skip the metadata extraction step')
     parser.add_argument('--skip-content', action='store_true',
                         help='Skip the content analysis step')
+    parser.add_argument('--skip-excel', action='store_true',
+                        help='Skip creating Excel file with multiple tabs')
     
     args = parser.parse_args()
     
@@ -192,6 +195,39 @@ def main():
     else:
         print("\n⏭️  Skipping content analysis step")
     
+    # Step 4: Create Excel file (by default, unless skipped)
+    if not args.skip_excel:
+        print(f"\n{'='*60}")
+        print("STEP: Creating Excel Analysis File")
+        print(f"{'='*60}")
+        
+        try:
+            # Import the function from add-metadata.py
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("add_metadata", 
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "add-metadata.py"))
+            add_metadata_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(add_metadata_module)
+            
+            # Create Excel file using the base output file
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            csv_path = os.path.join(script_dir, base_output_file)
+            excel_path = add_metadata_module.create_excel_analysis(csv_path, base_output_file)
+            
+            if excel_path:
+                print(f"\n✅ Excel file created successfully: {os.path.basename(excel_path)}")
+                steps_run += 1
+            else:
+                print(f"\n❌ Failed to create Excel file")
+                steps_failed += 1
+                
+        except Exception as e:
+            print(f"\n❌ Error creating Excel file: {e}")
+            print("💡 Tip: Install openpyxl with 'pip install openpyxl' for Excel support")
+            steps_failed += 1
+    else:
+        print("\n⏭️  Skipping Excel file creation")
+    
     # Show summary
     end_time = time.time()
     duration = end_time - start_time
@@ -208,7 +244,12 @@ def main():
     show_output_files()
     
     print(f"\n📊 Your TOC analysis is complete!")
-    print("You can now open the CSV files to review your TOC structure, metadata, and content analysis.")
+    if not args.skip_excel:
+        print("You can now open the Excel file for comprehensive analysis with multiple tabs,")
+        print("or use the CSV files for detailed data processing.")
+    else:
+        print("You can now open the CSV files to review your TOC structure, metadata, and content analysis.")
+        print("💡 Tip: Remove --skip-excel flag to also create an Excel file with multiple tabs for easier analysis.")
 
 if __name__ == "__main__":
     main()

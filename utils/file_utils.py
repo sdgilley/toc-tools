@@ -43,7 +43,17 @@ def resolve_file_path(href, base_path):
         full_path = os.path.normpath(os.path.join(base_path, href))
     else:
         # Regular relative path
+        # First try resolving relative to the base_path
         full_path = os.path.join(base_path, href)
+        
+        # If file doesn't exist and this looks like it might be a sibling directory,
+        # try resolving relative to the parent of base_path
+        if not os.path.exists(full_path) and '/' in href:
+            # Check if this might be a sibling directory by trying parent path
+            parent_base_path = os.path.dirname(base_path)
+            alternative_path = os.path.join(parent_base_path, href)
+            if os.path.exists(alternative_path):
+                full_path = alternative_path
     
     # Ensure it's a markdown file if it doesn't already have an extension
     if not full_path.endswith('.md') and '.' not in os.path.basename(full_path):
