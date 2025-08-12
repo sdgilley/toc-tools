@@ -41,6 +41,8 @@ def analyze_content(file_path):
                 'tab_formats': [],
                 'has_images': False,
                 'image_count': 0,
+                'image_formats': [],
+                'portal_steps': False
                 'has_code_blocks': False,
                 'code_block_count': 0,
                 'code_languages': [],
@@ -54,6 +56,8 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
+            'image_formats': [],
+            'portal_steps': False
             'has_code_blocks': False,
             'code_block_count': 0,
             'code_languages': [],
@@ -112,6 +116,25 @@ def analyze_content(file_path):
             analysis['has_code_refs'] = True
             analysis['code_ref_count'] = len(code_ref_matches)
         
+        # Look for portal steps: numbered lines like "1. Step one", "2. Step two"
+        # Pattern looks for lines that start with a number followed by a period and space
+        step_pattern = r'^\s*\d+\.\s+'
+        lines = content.split('\n')
+        numbered_lines = [line for line in lines if re.match(step_pattern, line)]
+        
+        # Consider it portal steps if we have at least 2 consecutive numbered items
+        if len(numbered_lines) >= 2:
+            # Check if we have a sequence starting from 1
+            first_numbers = []
+            for line in numbered_lines[:5]:  # Check first 5 to see if we have 1, 2, 3...
+                match = re.match(r'^\s*(\d+)\.\s+', line)
+                if match:
+                    first_numbers.append(int(match.group(1)))
+            
+            # If we start with 1 and have at least 2 consecutive numbers, it's likely portal steps
+            if first_numbers and first_numbers[0] == 1 and len(first_numbers) >= 2:
+                analysis['portal_steps'] = True
+        
         return analysis
         
     except Exception as e:
@@ -122,6 +145,8 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
+            'image_formats': [],
+            'portal_steps': False
             'has_code_blocks': False,
             'code_block_count': 0,
             'code_languages': [],
@@ -165,6 +190,8 @@ def add_content_analysis_to_csv():
     df['tab_formats'] = ""
     df['has_images'] = False
     df['image_count'] = 0
+    df['image_formats'] = ""
+    df['portal_steps'] = False
     df['has_code_blocks'] = False
     df['code_block_count'] = 0
     df['code_languages'] = ""
@@ -197,6 +224,8 @@ def add_content_analysis_to_csv():
                 df.at[index, 'tab_formats'] = ', '.join(analysis['tab_formats']) if analysis['tab_formats'] else ""
                 df.at[index, 'has_images'] = analysis['has_images']
                 df.at[index, 'image_count'] = analysis['image_count']
+                df.at[index, 'image_formats'] = ', '.join(analysis['image_formats']) if analysis['image_formats'] else ""
+                df.at[index, 'portal_steps'] = analysis['portal_steps']
                 df.at[index, 'has_code_blocks'] = analysis['has_code_blocks']
                 df.at[index, 'code_block_count'] = analysis['code_block_count']
                 df.at[index, 'code_languages'] = ', '.join(analysis['code_languages']) if analysis['code_languages'] else ""
@@ -219,6 +248,7 @@ def add_content_analysis_to_csv():
     # Show content analysis statistics
     files_with_tabs = len(df[df['has_tabs'] == True])
     files_with_images = len(df[df['has_images'] == True])
+    files_with_portal_steps = len(df[df['portal_steps'] == True])
     files_with_code_blocks = len(df[df['has_code_blocks'] == True])
     files_with_code_refs = len(df[df['has_code_refs'] == True])
     total_tabs = df['tab_count'].sum()
@@ -231,6 +261,7 @@ def add_content_analysis_to_csv():
     print(f"Total tab instances: {total_tabs}")
     print(f"Files with images: {files_with_images}")
     print(f"Total image instances: {total_images}")
+    print(f"Files with portal steps: {files_with_portal_steps}")
     print(f"Files with code blocks: {files_with_code_blocks}")
     print(f"Total code block instances: {total_code_blocks}")
     print(f"Files with code refs: {files_with_code_refs}")

@@ -5,7 +5,7 @@ URL_PATH=https://learn.microsoft.com/azure/ai-foundry/
 OUTPUT_FILE=foundry-toc.csv
 
 # Set these for the metadata extraction script
-BASE_PATH=C:/git/azure-ai-docs-pr/articles/ai-foundry
+BASE_PATH=C:/git/azure-ai-docs-pr/articles/
 
 # Use these files when running scripts separately:
 METADATA_FILE=foundry-toc.csv
