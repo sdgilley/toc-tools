@@ -7,15 +7,14 @@ OUTPUT_FILE=foundry-toc.csv
 # Set these for the metadata extraction script
 BASE_PATH=C:/git/azure-ai-docs-pr/articles/ai-foundry
 
-# Set these to differet names to iterate on a script.  
-# Or use the same name for each sript to update the same file
+# Use these files when running scripts separately:
 METADATA_FILE=foundry-toc.csv
 METADATA_OUTPUT_FILE=foundry-toc.csv
 CONTENT_FILE=foundry-toc.csv
 CONTENT_OUTPUT_FILE=foundry-toc-content.csv
 PIVOT_MAP_FILE=C:/git/azure-ai-docs-pr/zone-pivots/zone-pivot-groups.yml
 
-# Set these for the docs agent functionality
+# WIP NOT NEEDED NOW Set these for the docs agent functionality
 DOCS_AGENT_ENDPOINT=https://mydemo-resource.services.ai.azure.com/api/projects/mydemo
 DOCS_AGENT_ID=asst_eH8uOuJSTvNjzsjS0qsN3OoL
 AGENT_OUTPUT_FILE=foundry-toc-with-agent-responses.csv
@@ -24,7 +23,7 @@ RESUME_PROCESSING=false
 MAX_RETRIES=3
 RETRY_DELAY_SECONDS=30
 
-# Set these to use an AI Foundry model to summarize files 
+# WIP NOT NEEDED NOW  Set these to use an AI Foundry model to summarize files 
 # Get these values from AI Foundry
 DEPLOYMENT_NAME=gpt-4.1-mini
 ENDPOINT_URL="add your endpoint here"

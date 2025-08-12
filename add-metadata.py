@@ -68,7 +68,8 @@ def add_metadata_to_csv():
     df['ms.author'] = ""
     df['ms.topic'] = ""
     df['description'] = ""
-    df['pivot'] = ""
+    df['pivot_id'] = ""
+    df['has_pivots'] = False
     df['pivot_groups'] = ""
     df['hub-only'] = False
     df['file_found'] = False
@@ -110,15 +111,18 @@ def add_metadata_to_csv():
             # Handle pivot groups
             pivot_group_ids = None
             if 'zone_pivot_groups' in metadata:
-                df.at[index, 'pivot'] = metadata['zone_pivot_groups']
+                df.at[index, 'pivot_id'] = metadata['zone_pivot_groups']
                 pivot_group_ids = metadata['zone_pivot_groups']
             elif 'pivot' in metadata:
-                df.at[index, 'pivot'] = metadata['pivot']
+                df.at[index, 'pivot_id'] = metadata['pivot']
                 pivot_group_ids = metadata['pivot']
             
             # Set pivot group data (always use comma-separated for main file)
             if pivot_group_ids:
                 pivot_groups = resolve_pivot_groups(pivot_group_ids, pivot_mapping)
+                
+                # Set has_pivots flag
+                df.at[index, 'has_pivots'] = True
                 
                 # Always set the comma-separated column for main file
                 df.at[index, 'pivot_groups'] = ', '.join(pivot_groups) if pivot_groups else ""
@@ -192,13 +196,14 @@ def add_metadata_to_csv():
     # Show some statistics
     authors = df[df['ms.author'] != '']['ms.author'].value_counts()
     topics = df[df['ms.topic'] != '']['ms.topic'].value_counts()
-    pivots = df[df['pivot'] != '']['pivot'].value_counts()
+    pivots = df[df['pivot_id'] != '']['pivot_id'].value_counts()
     
     print(f"\nMetadata Statistics:")
     print(f"Files with ms.author: {len(df[df['ms.author'] != ''])}")
     print(f"Files with ms.topic: {len(df[df['ms.topic'] != ''])}")
     print(f"Files with description: {len(df[df['description'] != ''])}")
-    print(f"Files with pivot: {len(df[df['pivot'] != ''])}")
+    print(f"Files with pivot_id: {len(df[df['pivot_id'] != ''])}")
+    print(f"Files with has_pivots: {len(df[df['has_pivots'] == True])}")
     print(f"Files with pivot groups: {len(df[df['pivot_groups'] != ''])}")
     print(f"Files with hub-only: {len(df[df['hub-only'] == True])}")
     
@@ -213,7 +218,7 @@ def add_metadata_to_csv():
             print(f"  {topic}: {count} files")
     
     if len(pivots) > 0:
-        print(f"\nPivot groups found:")
+        print(f"\nPivot group IDs found:")
         for pivot, count in pivots.head(10).items():
             print(f"  {pivot}: {count} files")
     

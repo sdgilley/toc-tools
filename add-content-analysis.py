@@ -41,7 +41,11 @@ def analyze_content(file_path):
                 'tab_formats': [],
                 'has_images': False,
                 'image_count': 0,
-                'image_formats': []
+                'has_code_blocks': False,
+                'code_block_count': 0,
+                'code_languages': [],
+                'has_code_refs': False,
+                'code_ref_count': 0
             }
         
         analysis = {
@@ -50,7 +54,11 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': []
+            'has_code_blocks': False,
+            'code_block_count': 0,
+            'code_languages': [],
+            'has_code_refs': False,
+            'code_ref_count': 0
         }
         
         # Look for tab formats: #tab/xxx
@@ -67,15 +75,6 @@ def analyze_content(file_path):
         if image_matches:
             analysis['has_images'] = True
             analysis['image_count'] = len(image_matches)
-            # Extract image types and sources
-            for img_type, img_source in image_matches:
-                if img_type:
-                    analysis['image_formats'].append(img_type)
-                # Could also track image file extensions
-                if img_source:
-                    ext = os.path.splitext(img_source)[1].lower()
-                    if ext and ext not in analysis['image_formats']:
-                        analysis['image_formats'].append(ext)
         
         # Also look for standard markdown images: ![alt](src)
         md_image_pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
@@ -85,11 +84,33 @@ def analyze_content(file_path):
                 analysis['has_images'] = True
                 analysis['image_count'] = 0
             analysis['image_count'] += len(md_image_matches)
-            # Extract file extensions
-            for alt, src in md_image_matches:
-                ext = os.path.splitext(src)[1].lower()
-                if ext and ext not in analysis['image_formats']:
-                    analysis['image_formats'].append(ext)
+        
+        # Look for code blocks: ``` or ~~~
+        # Pattern to match fenced code blocks with optional language specification
+        code_block_pattern = r'^(?:```|~~~)([^\n\r]*)'
+        code_block_matches = re.findall(code_block_pattern, content, re.MULTILINE)
+        if code_block_matches:
+            analysis['has_code_blocks'] = True
+            analysis['code_block_count'] = len(code_block_matches)
+            # Extract language specifications
+            for lang_spec in code_block_matches:
+                lang_spec = lang_spec.strip()
+                if lang_spec:  # If there's a language specified
+                    # Split by whitespace and take first part (language)
+                    lang = lang_spec.split()[0].lower()
+                    if lang and lang not in analysis['code_languages']:
+                        analysis['code_languages'].append(lang)
+                else:
+                    # Code block without language specification
+                    if 'none' not in analysis['code_languages']:
+                        analysis['code_languages'].append('none')
+        
+        # Look for code references: :::code
+        code_ref_pattern = r':::code[^\n]*'
+        code_ref_matches = re.findall(code_ref_pattern, content, re.IGNORECASE)
+        if code_ref_matches:
+            analysis['has_code_refs'] = True
+            analysis['code_ref_count'] = len(code_ref_matches)
         
         return analysis
         
@@ -101,7 +122,11 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': []
+            'has_code_blocks': False,
+            'code_block_count': 0,
+            'code_languages': [],
+            'has_code_refs': False,
+            'code_ref_count': 0
         }
 
 def add_content_analysis_to_csv():
@@ -140,7 +165,11 @@ def add_content_analysis_to_csv():
     df['tab_formats'] = ""
     df['has_images'] = False
     df['image_count'] = 0
-    df['image_formats'] = ""
+    df['has_code_blocks'] = False
+    df['code_block_count'] = 0
+    df['code_languages'] = ""
+    df['has_code_refs'] = False
+    df['code_ref_count'] = 0
     
     # Process each row
     total_rows = len(df)
@@ -168,7 +197,11 @@ def add_content_analysis_to_csv():
                 df.at[index, 'tab_formats'] = ', '.join(analysis['tab_formats']) if analysis['tab_formats'] else ""
                 df.at[index, 'has_images'] = analysis['has_images']
                 df.at[index, 'image_count'] = analysis['image_count']
-                df.at[index, 'image_formats'] = ', '.join(analysis['image_formats']) if analysis['image_formats'] else ""
+                df.at[index, 'has_code_blocks'] = analysis['has_code_blocks']
+                df.at[index, 'code_block_count'] = analysis['code_block_count']
+                df.at[index, 'code_languages'] = ', '.join(analysis['code_languages']) if analysis['code_languages'] else ""
+                df.at[index, 'has_code_refs'] = analysis['has_code_refs']
+                df.at[index, 'code_ref_count'] = analysis['code_ref_count']
                 
                 analyzed_files += 1
                 
@@ -186,14 +219,22 @@ def add_content_analysis_to_csv():
     # Show content analysis statistics
     files_with_tabs = len(df[df['has_tabs'] == True])
     files_with_images = len(df[df['has_images'] == True])
+    files_with_code_blocks = len(df[df['has_code_blocks'] == True])
+    files_with_code_refs = len(df[df['has_code_refs'] == True])
     total_tabs = df['tab_count'].sum()
     total_images = df['image_count'].sum()
+    total_code_blocks = df['code_block_count'].sum()
+    total_code_refs = df['code_ref_count'].sum()
     
     print(f"\nContent Analysis Statistics:")
     print(f"Files with tabs: {files_with_tabs}")
     print(f"Total tab instances: {total_tabs}")
     print(f"Files with images: {files_with_images}")
     print(f"Total image instances: {total_images}")
+    print(f"Files with code blocks: {files_with_code_blocks}")
+    print(f"Total code block instances: {total_code_blocks}")
+    print(f"Files with code refs: {files_with_code_refs}")
+    print(f"Total code ref instances: {total_code_refs}")
     
     # Show most common tab formats
     if files_with_tabs > 0:
@@ -209,19 +250,19 @@ def add_content_analysis_to_csv():
             for fmt, count in tab_format_counts.most_common(10):
                 print(f"  {fmt}: {count} files")
     
-    # Show most common image formats
-    if files_with_images > 0:
-        all_image_formats = []
+    # Show most common code languages
+    if files_with_code_blocks > 0:
+        all_code_languages = []
         for _, row in df.iterrows():
-            if row['image_formats']:
-                all_image_formats.extend([fmt.strip() for fmt in row['image_formats'].split(',')])
+            if row['code_languages']:
+                all_code_languages.extend([lang.strip() for lang in row['code_languages'].split(',')])
         
-        if all_image_formats:
+        if all_code_languages:
             from collections import Counter
-            image_format_counts = Counter(all_image_formats)
-            print(f"\nMost common image formats:")
-            for fmt, count in image_format_counts.most_common(10):
-                print(f"  {fmt}: {count} files")
+            code_language_counts = Counter(all_code_languages)
+            print(f"\nMost common code languages:")
+            for lang, count in code_language_counts.most_common(15):
+                print(f"  {lang}: {count} files")
 
 if __name__ == "__main__":
     add_content_analysis_to_csv()

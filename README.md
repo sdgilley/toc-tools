@@ -8,13 +8,32 @@ To run any of the scripts in this repo, first follow these steps.
 
 1. Create an environment:
 
+    **Windows (PowerShell):**
+    ```powershell
+    python -m venv .venv
+    # If you encounter execution policy errors, first fix the policy:
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    # Then activate the environment:
+    & ".venv\scripts\Activate.ps1"
+    # Alternative: If still having issues, you can run Python directly from the venv
+    # Use: & ".venv\scripts\python.exe" instead of just "python" in subsequent commands
+    ```
+
+    **Mac/Linux (bash/zsh):**
     ```bash
-    py -3 -m venv .venv
-    .venv\scripts\activate
+    python3 -m venv .venv
+    source .venv/bin/activate
     ```
 
 1. Install packages into environment:
 
+    **Windows:**
+    ```powershell
+    pip install -r requirements.txt
+    # Or if using the direct Python method: & ".venv\scripts\python.exe" -m pip install -r requirements.txt
+    ```
+
+    **Mac/Linux:**
     ```bash
     pip install -r requirements.txt
     ```
@@ -40,6 +59,13 @@ This script runs quickly, even for large TOCs.  It creates a spreadsheet showing
 
 1. Build the spreadsheet:
 
+    **Windows:**
+    ```powershell
+    python build-spreadsheet.py
+    # Or if using direct method: & ".venv\scripts\python.exe" build-spreadsheet.py
+    ```
+
+    **Mac/Linux:**
     ```bash
     python build-spreadsheet.py
     ```
@@ -65,6 +91,13 @@ Extract metadata from the front matter of markdown files and add it to your spre
 
 1. To add metadata to your spreadsheet:
 
+    **Windows:**
+    ```powershell
+    python add-metadata.py
+    # Or if using direct method: & ".venv\scripts\python.exe" add-metadata.py
+    ```
+
+    **Mac/Linux:**
     ```bash
     python add-metadata.py
     ```
@@ -97,12 +130,27 @@ For convenience, you can run all three steps (build spreadsheet, add metadata, a
 
 1. To run the complete pipeline:
 
+    **Windows:**
+    ```powershell
+    python run-all-analysis.py
+    # Or if using direct method: & ".venv\scripts\python.exe" run-all-analysis.py
+    ```
+
+    **Mac/Linux:**
     ```bash
     python run-all-analysis.py
     ```
 
     Or to skip specific steps:
 
+    **Windows:**
+    ```powershell
+    python run-all-analysis.py --skip-content    # Skip content analysis
+    python run-all-analysis.py --skip-metadata   # Skip metadata extraction
+    python run-all-analysis.py --skip-build      # Skip initial build
+    ```
+
+    **Mac/Linux:**
     ```bash
     python run-all-analysis.py --skip-content    # Skip content analysis
     python run-all-analysis.py --skip-metadata   # Skip metadata extraction
