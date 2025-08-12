@@ -41,8 +41,7 @@ def analyze_content(file_path):
                 'tab_formats': [],
                 'has_images': False,
                 'image_count': 0,
-                'image_formats': [],
-                'portal_steps': False
+                'portal_steps': False,
                 'has_code_blocks': False,
                 'code_block_count': 0,
                 'code_languages': [],
@@ -56,8 +55,7 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': [],
-            'portal_steps': False
+            'portal_steps': False,
             'has_code_blocks': False,
             'code_block_count': 0,
             'code_languages': [],
@@ -145,8 +143,7 @@ def analyze_content(file_path):
             'tab_formats': [],
             'has_images': False,
             'image_count': 0,
-            'image_formats': [],
-            'portal_steps': False
+            'portal_steps': False,
             'has_code_blocks': False,
             'code_block_count': 0,
             'code_languages': [],
@@ -190,7 +187,6 @@ def add_content_analysis_to_csv():
     df['tab_formats'] = ""
     df['has_images'] = False
     df['image_count'] = 0
-    df['image_formats'] = ""
     df['portal_steps'] = False
     df['has_code_blocks'] = False
     df['code_block_count'] = 0
@@ -224,7 +220,6 @@ def add_content_analysis_to_csv():
                 df.at[index, 'tab_formats'] = ', '.join(analysis['tab_formats']) if analysis['tab_formats'] else ""
                 df.at[index, 'has_images'] = analysis['has_images']
                 df.at[index, 'image_count'] = analysis['image_count']
-                df.at[index, 'image_formats'] = ', '.join(analysis['image_formats']) if analysis['image_formats'] else ""
                 df.at[index, 'portal_steps'] = analysis['portal_steps']
                 df.at[index, 'has_code_blocks'] = analysis['has_code_blocks']
                 df.at[index, 'code_block_count'] = analysis['code_block_count']
