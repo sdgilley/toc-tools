@@ -142,6 +142,5 @@ This script will:
   * **Complete Data**: All articles with full metadata and content analysis
   * **Hub Articles**: Filtered view of hub-only and hub-project articles
   * **Content Summary**: Statistics and summaries of content types, metadata, and programming languages
-* Apply clean table formatting with dark blue headers for easy filtering and sorting
 
 When run as a separate step, it reads CONTENT_FILE and writes CONTENT_OUTPUT_FILE
