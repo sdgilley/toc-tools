@@ -8,7 +8,7 @@ The script creates:
 1. Main CSV file with comma-separated pivot_groups column
 2. If pivot groups exist: Additional "-pivots" CSV file with individual boolean columns for each pivot group
 
-Optional: Merges NextGen? column from existing Excel file if EXISTING_EXCEL_FILE is set.
+Optional: Merges Notes, NextGen?, and NextGen TOC columns from existing Excel file if EXISTING_EXCEL_FILE is set.
 Optional: Merges engagement metrics if MERGE_ENGAGEMENT=1 and ENGAGEMENT_FILE is set.
 
 Usage:
@@ -183,12 +183,12 @@ def add_metadata_to_csv():
                 # Fallback to first sheet if 'Complete Data' doesn't exist
                 df_existing = pd.read_excel(existing_excel_file, sheet_name=0, engine='openpyxl')
             
-            # Select only the columns we want to merge: URL + Notes + NextGen?
+            # Select only the columns we want to merge: URL + Notes + NextGen? + NextGen TOC
             available_cols = list(df_existing.columns)
             print(f"Available columns in existing file: {available_cols}")
             
             # Define columns we want to keep
-            desired_columns = ['URL', 'Notes', 'NextGen?']
+            desired_columns = ['URL', 'Notes', 'NextGen?', 'NextGen TOC']
             merge_columns = [col for col in desired_columns if col in available_cols]
             
             if 'URL' in merge_columns and len(merge_columns) > 1:  # URL + at least one other column
@@ -199,7 +199,7 @@ def add_metadata_to_csv():
                 print(f"Current data has {len(df)} rows")
                 
                 # Drop any existing Notes/NextGen columns to avoid conflicts during merge
-                columns_to_drop = [col for col in ['Notes', 'NextGen?'] if col in df.columns]
+                columns_to_drop = [col for col in ['Notes', 'NextGen?', 'NextGen TOC'] if col in df.columns]
                 if columns_to_drop:
                     df = df.drop(columns=columns_to_drop)
                     print(f"Dropped existing columns from current data: {columns_to_drop}")
@@ -247,10 +247,11 @@ def add_metadata_to_csv():
             else:
                 print(f"Warning: No mergeable columns found in existing Excel file")
                 print(f"Available columns: {available_cols}")
-                print(f"Looking for: URL (required) and any of: Notes, NextGen?")
+                print(f"Looking for: URL (required) and any of: Notes, NextGen?, NextGen TOC")
                 print(f"'URL' found: {'URL' in available_cols}")
                 print(f"'Notes' found: {'Notes' in available_cols}")
                 print(f"'NextGen?' found: {'NextGen?' in available_cols}")
+                print(f"'NextGen TOC' found: {'NextGen TOC' in available_cols}")
                 
         except Exception as e:
             print(f"Error reading existing Excel file: {e}")
@@ -409,6 +410,16 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
             # Only keep relevant columns
             engage_cols = ["Url", "PageViews", "PVMoM", "Visitors", "Engagement"]
             df_engage = df_engage[engage_cols]
+            
+            # Convert numeric columns from string format (remove commas, percentages and convert to numeric)
+            numeric_cols = ["PageViews", "PVMoM", "Visitors"]
+            for col in numeric_cols:
+                if col in df_engage.columns:
+                    # Remove commas and percentage signs, then convert to numeric
+                    df_engage[col] = df_engage[col].astype(str).str.replace(',', '').str.replace('%', '')
+                    df_engage[col] = pd.to_numeric(df_engage[col], errors='coerce')
+                    print(f"Converted {col} to numeric format (removed commas and %)")
+            
             print("Normalizing engagement URLs...")
             df_engage["url_match"] = df_engage["Url"].apply(normalize_url)
             print("\nFirst 5 engagement URLs and their normalized versions:")
@@ -463,7 +474,7 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     
     # Reorder columns to ensure Notes and NextGen columns are in early positions
     special_columns = []
-    for col in ['Notes', 'NextGen', 'NextGen?']:
+    for col in ['Notes', 'NextGen', 'NextGen?', 'NextGen TOC']:
         if col in df.columns:
             special_columns.append(col)
     
