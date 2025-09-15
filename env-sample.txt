@@ -7,6 +7,9 @@ OUTPUT_FILE=foundry-toc.csv
 # Set these for the metadata extraction script
 BASE_PATH=C:/git/azure-ai-docs-pr/articles/
 
+# Set this for merging existing NextGen data
+EXISTING_EXCEL_FILE=
+
 # Use these files when running scripts separately:
 METADATA_FILE=foundry-toc.csv
 METADATA_OUTPUT_FILE=foundry-toc.csv

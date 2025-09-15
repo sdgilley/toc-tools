@@ -46,7 +46,9 @@ def analyze_content(file_path):
                 'code_block_count': 0,
                 'code_languages': [],
                 'has_code_refs': False,
-                'code_ref_count': 0
+                'code_ref_count': 0,
+                'Contains_link': False,
+                'Contains_link_with_param': False
             }
         
         analysis = {
@@ -60,7 +62,9 @@ def analyze_content(file_path):
             'code_block_count': 0,
             'code_languages': [],
             'has_code_refs': False,
-            'code_ref_count': 0
+            'code_ref_count': 0,
+            'Contains_link': False,
+            'Contains_link_with_param': False
         }
         
         # Look for tab formats: #tab/xxx
@@ -133,6 +137,15 @@ def analyze_content(file_path):
             if first_numbers and first_numbers[0] == 1 and len(first_numbers) >= 2:
                 analysis['portal_steps'] = True
         
+        # Strip .md from URLs before link checks
+        content_for_link = content.replace('.md', '')
+        # Check for links to https://ai.azure.com (no parameters)
+        contains_link_no_param = bool(re.search(r'https://ai\.azure\.com\b(?![/?]\?)', content_for_link))
+        # Check for links to https://ai.azure.com?cid=learnDocs or https://ai.azure.com/?cid=learnDocs
+        contains_link_with_param = bool(re.search(r'https://ai\.azure\.com/?\?cid=learnDocs', content_for_link))
+        analysis['contains_link_no_param'] = contains_link_no_param
+        analysis['Contains_link_with_param'] = contains_link_with_param
+
         return analysis
         
     except Exception as e:
@@ -148,7 +161,9 @@ def analyze_content(file_path):
             'code_block_count': 0,
             'code_languages': [],
             'has_code_refs': False,
-            'code_ref_count': 0
+            'code_ref_count': 0,
+            'Contains_link': False,
+            'Contains_link_with_param': False
         }
 
 def add_content_analysis_to_csv():
@@ -181,6 +196,10 @@ def add_content_analysis_to_csv():
     # Read the CSV file
     df = pd.read_csv(input_path)
     
+    # Change column name from Href to filename
+    if 'Href' in df.columns:
+        df = df.rename(columns={'Href': 'filename'})
+    
     # Add new columns for content analysis
     df['has_tabs'] = False
     df['tab_count'] = 0
@@ -193,6 +212,8 @@ def add_content_analysis_to_csv():
     df['code_languages'] = ""
     df['has_code_refs'] = False
     df['code_ref_count'] = 0
+    df['contains_link_no_param'] = False
+    df['Contains_link_with_param'] = False
     
     # Process each row
     total_rows = len(df)
@@ -200,7 +221,7 @@ def add_content_analysis_to_csv():
     analyzed_files = 0
     
     for index, row in df.iterrows():
-        href = row.get('Href', '')
+        filename = row.get('filename', '')
         
         if index % 50 == 0:  # Progress indicator
             print(f"Processing row {index + 1}/{total_rows}")
@@ -208,7 +229,7 @@ def add_content_analysis_to_csv():
         # Only analyze files that were found in the previous step
         if row.get('file_found', False):
             # Resolve the file path
-            file_path = resolve_file_path(href, base_path)
+            file_path = resolve_file_path(filename, base_path)
             
             if file_path:
                 # Analyze content
@@ -226,6 +247,9 @@ def add_content_analysis_to_csv():
                 df.at[index, 'code_languages'] = ', '.join(analysis['code_languages']) if analysis['code_languages'] else ""
                 df.at[index, 'has_code_refs'] = analysis['has_code_refs']
                 df.at[index, 'code_ref_count'] = analysis['code_ref_count']
+                # Set new link analysis columns
+                df.at[index, 'contains_link_no_param'] = analysis.get('contains_link_no_param', False)
+                df.at[index, 'Contains_link_with_param'] = analysis.get('Contains_link_with_param', False)
                 
                 analyzed_files += 1
                 

@@ -23,7 +23,9 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
         name = item.get("name", "")
         href = item.get("href", "")
         
-        # Debug specific items to see what we're processing
+    # Debug specific items to see what we're processing
+    # if href and ("concepts/" in href or "foundry-models" in href):
+    #     print(f"Debug processing: name='{name}', href='{href}', toc_relative_dir='{toc_relative_dir}'")
         # if href and ("concepts/" in href or "foundry-models" in href):
         #     print(f"Debug processing: name='{name}', href='{href}', toc_relative_dir='{toc_relative_dir}'")
         
@@ -97,6 +99,9 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
                         # Remove leading .. components if they go above root
                         while processed_href.startswith("../"):
                             processed_href = processed_href[3:]
+                elif href.startswith("/"):
+                    # Absolute path from root, do not join with toc_relative_dir
+                    processed_href = href.lstrip("/")
                 elif href.startswith("./"):
                     # Handle ./ paths by removing the ./ prefix
                     processed_href = href[2:]  # Remove "./"
@@ -174,18 +179,22 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
                         if first_part != toc_first_part and "/" in processed_href:
                             is_sibling_directory = True
                 
+                # For URL creation, use normalize_url with preserve_query=True
+                from utils.url_normalizer import normalize_url
+                url_path = normalize_url(processed_href, preserve_query=True)
+                
                 if is_sibling_directory:
                     # This is a sibling directory (like ai-services from ai-foundry TOC)
-                    full_url = f"https://learn.microsoft.com/azure/{processed_href.lstrip('/')}"
+                    full_url = f"https://learn.microsoft.com/azure/{url_path.lstrip('/')}"
                 else:
                     # This is a regular file in the current service directory
                     if toc_relative_dir:
                         # Ensure the path includes the service directory if it doesn't already
-                        if not processed_href.startswith(toc_relative_dir + "/") and not processed_href.startswith(toc_relative_dir.split('/')[-1] + "/"):
+                        if not url_path.startswith(toc_relative_dir + "/") and not url_path.startswith(toc_relative_dir.split('/')[-1] + "/"):
                             # For simple filenames, add the toc directory prefix
-                            if "/" not in processed_href:
-                                processed_href = f"{toc_relative_dir}/{processed_href}"
-                    full_url = f"https://learn.microsoft.com/azure/{processed_href.lstrip('/')}"
+                            if "/" not in url_path:
+                                url_path = f"{toc_relative_dir}/{url_path}"
+                    full_url = f"https://learn.microsoft.com/azure/{url_path.lstrip('/')}"
             
             rows.append({
                 "Parent Path": parent_path,

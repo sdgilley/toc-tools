@@ -136,6 +136,8 @@ def main():
                         help='Skip the content analysis step')
     parser.add_argument('--skip-excel', action='store_true',
                         help='Skip creating Excel file with multiple tabs')
+    parser.add_argument('--merge-engagement', action='store_true', default=True,
+                        help='Merge engagement stats into analysis (default: off)')
     
     args = parser.parse_args()
     
@@ -200,7 +202,6 @@ def main():
         print(f"\n{'='*60}")
         print("STEP: Creating Excel Analysis File")
         print(f"{'='*60}")
-        
         try:
             # Import the function from add-metadata.py
             import importlib.util
@@ -208,19 +209,18 @@ def main():
                 os.path.join(os.path.dirname(os.path.abspath(__file__)), "add-metadata.py"))
             add_metadata_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(add_metadata_module)
-            
             # Create Excel file using the base output file
             script_dir = os.path.dirname(os.path.abspath(__file__))
             csv_path = os.path.join(script_dir, base_output_file)
+            # Set env var to control engagement merge
+            os.environ["MERGE_ENGAGEMENT"] = "1" if args.merge_engagement else "0"
             excel_path = add_metadata_module.create_excel_analysis(csv_path, base_output_file)
-            
             if excel_path:
                 print(f"\n✅ Excel file created successfully: {os.path.basename(excel_path)}")
                 steps_run += 1
             else:
                 print(f"\n❌ Failed to create Excel file")
                 steps_failed += 1
-                
         except Exception as e:
             print(f"\n❌ Error creating Excel file: {e}")
             print("💡 Tip: Install openpyxl with 'pip install openpyxl' for Excel support")
