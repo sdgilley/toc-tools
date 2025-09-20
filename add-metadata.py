@@ -177,11 +177,28 @@ def add_metadata_to_csv():
             print(f"Merging NextGen data from existing Excel file: {existing_excel_file}")
             
             # Read the 'Complete Data' sheet from the existing Excel file
+            tab_name = os.getenv('EXISTING_FILE_TAB_NAME')
+            print(f"[DEBUG] EXISTING_EXCEL_FILE: {existing_excel_file}")
+            print(f"[DEBUG] EXISTING_FILE_TAB_NAME: {tab_name}")
+            if tab_name:
+                print(f"[DEBUG] Using tab name from env: {tab_name}")
+            else:
+                print("[DEBUG] No tab name specified in env, using default sheet 'Complete Data'.")
+                tab_name = 'Current Docs'
             try:
-                df_existing = pd.read_excel(existing_excel_file, sheet_name='Complete Data', engine='openpyxl')
-            except:
-                # Fallback to first sheet if 'Complete Data' doesn't exist
-                df_existing = pd.read_excel(existing_excel_file, sheet_name=0, engine='openpyxl')
+                df_existing = pd.read_excel(existing_excel_file, sheet_name=tab_name, engine='openpyxl')
+                print(f"[DEBUG] Successfully loaded tab '{tab_name}' from Excel file.")
+            except Exception as e:
+                print(f"[DEBUG] WARNING: Could not open tab '{tab_name}' in existing Excel file: {e}")
+                print("[DEBUG] Falling back to first sheet.")
+                try:
+                    df_existing = pd.read_excel(existing_excel_file, sheet_name=0, engine='openpyxl')
+                    print(f"[DEBUG] Successfully loaded first sheet from Excel file.")
+                except Exception as e2:
+                    print(f"[DEBUG] ERROR: Could not open any sheet in existing Excel file: {e2}")
+                    df_existing = None
+            if df_existing is not None:
+                print(f"[DEBUG] Columns found in loaded sheet: {list(df_existing.columns)}")
             
             # Select only the columns we want to merge: URL + Notes + NextGen? + NextGen TOC
             available_cols = list(df_existing.columns)
