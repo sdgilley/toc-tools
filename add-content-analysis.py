@@ -149,7 +149,10 @@ def analyze_content(file_path):
         return analysis
         
     except Exception as e:
-        print(f"Error analyzing file {file_path}: {e}")
+        # Only show error details in debug mode
+        DEBUG = os.getenv("DEBUG", "False").lower() in ('true', '1', 'yes')
+        if DEBUG:
+            print(f"Error analyzing file {file_path}: {e}")
         return {
             'has_tabs': False,
             'tab_count': 0,
@@ -170,6 +173,9 @@ def add_content_analysis_to_csv():
     """
     Main function to read CSV, analyze content, and create enhanced CSV.
     """
+    # Check if debug mode is enabled
+    DEBUG = os.getenv("DEBUG", "False").lower() in ('true', '1', 'yes')
+    
     # Get configuration from environment variables
     input_file = os.getenv("CONTENT_FILE", "toc_with_metadata.csv")  # Use metadata file as input
     output_file = os.getenv("CONTENT_OUTPUT_FILE", "toc_with_content.csv")
@@ -191,7 +197,8 @@ def add_content_analysis_to_csv():
         return
     
     print(f"Reading CSV file: {input_path}")
-    print(f"Base path for files: {base_path}")
+    if DEBUG:
+        print(f"Base path for files: {base_path}")
     
     # Read the CSV file
     df = pd.read_csv(input_path)
@@ -223,8 +230,9 @@ def add_content_analysis_to_csv():
     for index, row in df.iterrows():
         filename = row.get('filename', '')
         
-        if index % 50 == 0:  # Progress indicator
-            print(f"Processing row {index + 1}/{total_rows}")
+        if DEBUG:
+            if index % 50 == 0:  # Progress indicator
+                print(f"Processing row {index + 1}/{total_rows}")
         
         # Only analyze files that were found in the previous step
         if row.get('file_found', False):
@@ -286,8 +294,8 @@ def add_content_analysis_to_csv():
     print(f"Files with code refs: {files_with_code_refs}")
     print(f"Total code ref instances: {total_code_refs}")
     
-    # Show most common tab formats
-    if files_with_tabs > 0:
+    # Show most common tab formats (debug mode only)
+    if DEBUG and files_with_tabs > 0:
         all_tab_formats = []
         for _, row in df.iterrows():
             if row['tab_formats']:
@@ -300,8 +308,8 @@ def add_content_analysis_to_csv():
             for fmt, count in tab_format_counts.most_common(10):
                 print(f"  {fmt}: {count} files")
     
-    # Show most common code languages
-    if files_with_code_blocks > 0:
+    # Show most common code languages (debug mode only)
+    if DEBUG and files_with_code_blocks > 0:
         all_code_languages = []
         for _, row in df.iterrows():
             if row['code_languages']:

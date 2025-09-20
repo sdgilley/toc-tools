@@ -6,7 +6,6 @@ It then adds these metadata columns to the CSV and exports the enhanced data.
 
 The script creates:
 1. Main CSV file with comma-separated pivot_groups column
-2. If pivot groups exist: Additional "-pivots" CSV file with individual boolean columns for each pivot group
 
 Optional: Merges Notes, NextGen?, and NextGen TOC columns from existing Excel file if EXISTING_EXCEL_FILE is set.
 Optional: Merges engagement metrics if MERGE_ENGAGEMENT=1 and ENGAGEMENT_FILE is set.
@@ -34,6 +33,9 @@ def add_metadata_to_csv():
     """
     Main function to read CSV, extract metadata, and create enhanced CSV.
     """
+    # Check if debug mode is enabled
+    DEBUG = os.getenv("DEBUG", "False").lower() in ('true', '1', 'yes')
+    
     # Get configuration from environment variables
     input_file = os.getenv("METADATA_FILE", "toc.csv")  # Use the existing output file as input
     base_path = os.getenv("BASE_PATH")  # Base path where the markdown files are located
@@ -49,10 +51,7 @@ def add_metadata_to_csv():
     input_path = os.path.join(script_dir, input_file)
     output_path = os.path.join(script_dir, output_file)
     
-    # Create pivot file name by adding "-pivots" before the extension
-    base_name, ext = os.path.splitext(output_file)
-    pivot_output_file = f"{base_name}-pivots{ext}"
-    pivot_output_path = os.path.join(script_dir, pivot_output_file)
+
     
     # Check if input file exists
     if not os.path.exists(input_path):
@@ -60,14 +59,17 @@ def add_metadata_to_csv():
         return
     
     print(f"Reading CSV file: {input_path}")
-    print(f"Base path for files: {base_path}")
+    if DEBUG:
+        print(f"Base path for files: {base_path}")
     
     # Load pivot mapping
     pivot_mapping = load_pivot_mapping(pivot_map_file)
     if pivot_mapping:
-        print(f"Loaded {len(pivot_mapping)} pivot groups from: {pivot_map_file}")
+        if DEBUG:
+            print(f"Loaded {len(pivot_mapping)} pivot groups from: {pivot_map_file}")
     else:
-        print("No pivot mapping loaded")
+        if DEBUG:
+            print("No pivot mapping loaded")
     
     # Read the CSV file
     df = pd.read_csv(input_path)
@@ -83,8 +85,7 @@ def add_metadata_to_csv():
     df['hub-only'] = False
     df['file_found'] = False
     
-    # Track pivot groups as we discover them
-    discovered_pivot_groups = set()
+
     
     # Process each row
     total_rows = len(df)
@@ -94,7 +95,7 @@ def add_metadata_to_csv():
     for index, row in df.iterrows():
         href = row.get('Href', '')
         
-        if index % 50 == 0:  # Progress indicator
+        if DEBUG and index % 50 == 0:  # Progress indicator
             print(f"Processing row {index + 1}/{total_rows}")
         
         # Resolve the file path
@@ -139,9 +140,7 @@ def add_metadata_to_csv():
                 # Always set the comma-separated column for main file
                 df.at[index, 'pivot_groups'] = ', '.join(pivot_groups) if pivot_groups else ""
                 
-                # Track discovered pivot groups for potential pivot file
-                for pivot_group in pivot_groups:
-                    discovered_pivot_groups.add(pivot_group)
+
             
             # Check for hub-only in ms.custom metadata
             hub_only_found = False
@@ -169,8 +168,9 @@ def add_metadata_to_csv():
     if existing_excel_file:
         # Strip quotes and clean the path
         existing_excel_file = existing_excel_file.strip('"\'')
-        print(f"Debug: EXISTING_EXCEL_FILE = '{existing_excel_file}'")
-        print(f"Debug: File exists? {os.path.exists(existing_excel_file)}")
+        if DEBUG:
+            print(f"Debug: EXISTING_EXCEL_FILE = '{existing_excel_file}'")
+            print(f"Debug: File exists? {os.path.exists(existing_excel_file)}")
     
     if existing_excel_file and os.path.exists(existing_excel_file) and openpyxl:
         try:
@@ -178,31 +178,38 @@ def add_metadata_to_csv():
             
             # Read the 'Complete Data' sheet from the existing Excel file
             tab_name = os.getenv('EXISTING_FILE_TAB_NAME')
-            print(f"[DEBUG] EXISTING_EXCEL_FILE: {existing_excel_file}")
-            print(f"[DEBUG] EXISTING_FILE_TAB_NAME: {tab_name}")
+            if DEBUG:
+                print(f"[DEBUG] EXISTING_EXCEL_FILE: {existing_excel_file}")
+                print(f"[DEBUG] EXISTING_FILE_TAB_NAME: {tab_name}")
             if tab_name:
-                print(f"[DEBUG] Using tab name from env: {tab_name}")
+                if DEBUG:
+                    print(f"[DEBUG] Using tab name from env: {tab_name}")
             else:
-                print("[DEBUG] No tab name specified in env, using default sheet 'Complete Data'.")
+                if DEBUG:
+                    print("[DEBUG] No tab name specified in env, using default sheet 'Complete Data'.")
                 tab_name = 'Current Docs'
             try:
                 df_existing = pd.read_excel(existing_excel_file, sheet_name=tab_name, engine='openpyxl')
-                print(f"[DEBUG] Successfully loaded tab '{tab_name}' from Excel file.")
+                if DEBUG:
+                    print(f"[DEBUG] Successfully loaded tab '{tab_name}' from Excel file.")
             except Exception as e:
-                print(f"[DEBUG] WARNING: Could not open tab '{tab_name}' in existing Excel file: {e}")
-                print("[DEBUG] Falling back to first sheet.")
+                if DEBUG:
+                    print(f"[DEBUG] WARNING: Could not open tab '{tab_name}' in existing Excel file: {e}")
+                    print("[DEBUG] Falling back to first sheet.")
                 try:
                     df_existing = pd.read_excel(existing_excel_file, sheet_name=0, engine='openpyxl')
-                    print(f"[DEBUG] Successfully loaded first sheet from Excel file.")
+                    if DEBUG:
+                        print(f"[DEBUG] Successfully loaded first sheet from Excel file.")
                 except Exception as e2:
                     print(f"[DEBUG] ERROR: Could not open any sheet in existing Excel file: {e2}")
                     df_existing = None
-            if df_existing is not None:
+            if df_existing is not None and DEBUG:
                 print(f"[DEBUG] Columns found in loaded sheet: {list(df_existing.columns)}")
             
             # Select only the columns we want to merge: URL + Notes + NextGen? + NextGen TOC
             available_cols = list(df_existing.columns)
-            print(f"Available columns in existing file: {available_cols}")
+            if DEBUG:
+                print(f"Available columns in existing file: {available_cols}")
             
             # Define columns we want to keep
             desired_columns = ['URL', 'Notes', 'NextGen?', 'NextGen TOC']
@@ -211,22 +218,27 @@ def add_metadata_to_csv():
             if 'URL' in merge_columns and len(merge_columns) > 1:  # URL + at least one other column
                 # Select columns and remove duplicates in one step
                 df_existing = df_existing[merge_columns].drop_duplicates(subset=['URL'], keep='first')
-                print(f"Keeping columns for merge: {merge_columns}")
-                print(f"Existing Excel file after deduplication: {len(df_existing)} unique URLs")
-                print(f"Current data has {len(df)} rows")
+                print(f"Merging data from existing Excel file - found {len(df_existing)} URLs with {', '.join(merge_columns[1:])} columns")
+                if DEBUG:
+                    print(f"Keeping columns for merge: {merge_columns}")
+                    print(f"Existing Excel file after deduplication: {len(df_existing)} unique URLs")
+                    print(f"Current data has {len(df)} rows")
                 
                 # Drop any existing Notes/NextGen columns to avoid conflicts during merge
                 columns_to_drop = [col for col in ['Notes', 'NextGen?', 'NextGen TOC'] if col in df.columns]
-                if columns_to_drop:
+                if columns_to_drop and DEBUG:
                     df = df.drop(columns=columns_to_drop)
                     print(f"Dropped existing columns from current data: {columns_to_drop}")
+                elif columns_to_drop:
+                    df = df.drop(columns=columns_to_drop)
                 
                 # Perform direct merge on URL column (no normalization needed)
                 before_merge = len(df)
                 df = df.merge(df_existing, how="left", on="URL")
                 after_merge = len(df)
                 
-                print(f"NextGen merge complete. Rows before: {before_merge}, after: {after_merge}")
+                if DEBUG:
+                    print(f"NextGen merge complete. Rows before: {before_merge}, after: {after_merge}")
                 
                 # Show sample of merged data
                 try:
@@ -237,9 +249,10 @@ def add_metadata_to_csv():
                         if col in df.columns:
                             count = df[col].notna().sum()
                             merged_data_summary.append(f"{col}: {count} URLs")
-                            print(f"Found {col} data for {count} URLs")
+                            if DEBUG:
+                                print(f"Found {col} data for {count} URLs")
                     
-                    if len(sample_cols) > 1:
+                    if len(sample_cols) > 1 and DEBUG:
                         print(f"\nSample of merged data:")
                         # Show sample with non-null values
                         sample_filter = df[merge_columns[1:]].notna().any(axis=1)
@@ -256,19 +269,22 @@ def add_metadata_to_csv():
                         other_columns = [col for col in df.columns if col not in base_columns + special_columns]
                         final_column_order = base_columns + special_columns + other_columns
                         df = df[final_column_order]
-                        print(f"Reordered columns with {', '.join(special_columns)} in early positions")
+                        if DEBUG:
+                            print(f"Reordered columns with {', '.join(special_columns)} in early positions")
                             
                 except Exception as sample_error:
-                    print(f"Error displaying sample: {sample_error}")
-                    print(f"Available columns after merge: {list(df.columns)}")
+                    if DEBUG:
+                        print(f"Error displaying sample: {sample_error}")
+                        print(f"Available columns after merge: {list(df.columns)}")
             else:
                 print(f"Warning: No mergeable columns found in existing Excel file")
-                print(f"Available columns: {available_cols}")
-                print(f"Looking for: URL (required) and any of: Notes, NextGen?, NextGen TOC")
-                print(f"'URL' found: {'URL' in available_cols}")
-                print(f"'Notes' found: {'Notes' in available_cols}")
-                print(f"'NextGen?' found: {'NextGen?' in available_cols}")
-                print(f"'NextGen TOC' found: {'NextGen TOC' in available_cols}")
+                if DEBUG:
+                    print(f"Available columns: {available_cols}")
+                    print(f"Looking for: URL (required) and any of: Notes, NextGen?, NextGen TOC")
+                    print(f"'URL' found: {'URL' in available_cols}")
+                    print(f"'Notes' found: {'Notes' in available_cols}")
+                    print(f"'NextGen?' found: {'NextGen?' in available_cols}")
+                    print(f"'NextGen TOC' found: {'NextGen TOC' in available_cols}")
                 
         except Exception as e:
             print(f"Error reading existing Excel file: {e}")
@@ -280,43 +296,13 @@ def add_metadata_to_csv():
     # Save the main enhanced CSV (always with comma-separated pivot_groups)
     df.to_csv(output_path, index=False)
     
-    # Create pivot columns file if we discovered any pivot groups
-    df_pivots = None
-    if discovered_pivot_groups:
-        print(f"Creating pivot columns file with {len(discovered_pivot_groups)} unique pivot groups...")
-        
-        # Create a copy of the dataframe for pivot columns
-        df_pivots = df.copy()
-        
-        # Add individual boolean columns for each discovered pivot group
-        for pivot_group in sorted(discovered_pivot_groups):
-            # Create safe column name (replace hyphens with underscores)
-            safe_column_name = f"pivot_{pivot_group.replace('-', '_')}"
-            df_pivots[safe_column_name] = False
-        
-        # Process each row again to set the individual pivot columns
-        for index, row in df_pivots.iterrows():
-            pivot_groups_str = row.get('pivot_groups', '')
-            if pivot_groups_str:
-                # Split the comma-separated string back to individual groups
-                pivot_groups = [pg.strip() for pg in pivot_groups_str.split(',')]
-                
-                # Set the corresponding boolean columns
-                for pivot_group in pivot_groups:
-                    safe_column_name = f"pivot_{pivot_group.replace('-', '_')}"
-                    if safe_column_name in df_pivots.columns:
-                        df_pivots.at[index, safe_column_name] = True
-        
-        # Save the pivot columns CSV
-        df_pivots.to_csv(pivot_output_path, index=False)
-        print(f"Pivot columns CSV saved to: {pivot_output_path}")
+
     
     print(f"\nProcessing complete!")
     print(f"Total rows: {total_rows}")
     print(f"Files found: {found_files}")
     print(f"Files processed: {processed_files}")
-    if discovered_pivot_groups:
-        print(f"Discovered {len(discovered_pivot_groups)} unique pivot groups")
+
     print(f"Main CSV saved to: {output_path}")
     
     # Show some statistics
@@ -335,45 +321,38 @@ def add_metadata_to_csv():
     print(f"Files with pivot groups: {len(df[df['pivot_groups'] != ''])}")
     print(f"Files with hub-only: {len(df[df['hub-only'] == True])}")
     
-    if len(authors) > 0:
-        print(f"\nTop 5 authors:")
-        for author, count in authors.head().items():
-            print(f"  {author}: {count} files")
-    
-    if len(topics) > 0:
-        print(f"\nTop 5 topics:")
-        for topic, count in topics.head().items():
-            print(f"  {topic}: {count} files")
+    if DEBUG:
+        if len(authors) > 0:
+            print(f"\nTop 5 authors:")
+            for author, count in authors.head().items():
+                print(f"  {author}: {count} files")
+        
+        if len(topics) > 0:
+            print(f"\nTop 5 topics:")
+            for topic, count in topics.head().items():
+                print(f"  {topic}: {count} files")
 
-    if len(services) > 0:
-        print(f"\nms.service:")
-        for service, count in services.items():
-            print(f"  {service}: {count} files")
+        if len(services) > 0:
+            print(f"\nms.service:")
+            for service, count in services.items():
+                print(f"  {service}: {count} files")
             
-    return df, df_pivots  # Return both dataframes for potential Excel export
+    if DEBUG:
+        if len(pivots) > 0:
+            print(f"\nPivot group IDs found:")
+            for pivot, count in pivots.head(10).items():
+                print(f"  {pivot}: {count} files")
+        
+        # Show resolved pivot group names from comma-separated column
+        pivot_group_names = df[df['pivot_groups'] != '']['pivot_groups'].value_counts()
+        if len(pivot_group_names) > 0:
+            print(f"\nResolved pivot group names:")
+            for group_name, count in pivot_group_names.head(10).items():
+                print(f"  {group_name}: {count} files")
     
-    if len(pivots) > 0:
-        print(f"\nPivot group IDs found:")
-        for pivot, count in pivots.head(10).items():
-            print(f"  {pivot}: {count} files")
+    return df  # Return main dataframe only
     
-    # Show resolved pivot group names from comma-separated column
-    pivot_group_names = df[df['pivot_groups'] != '']['pivot_groups'].value_counts()
-    if len(pivot_group_names) > 0:
-        print(f"\nResolved pivot group names:")
-        for group_name, count in pivot_group_names.head(10).items():
-            print(f"  {group_name}: {count} files")
-    
-    # Show individual pivot group usage if we created a pivot file
-    if discovered_pivot_groups:
-        print(f"\nIndividual pivot group usage (in pivot columns file):")
-        pivot_columns = [f"pivot_{pg.replace('-', '_')}" for pg in sorted(discovered_pivot_groups)]
-        for col in pivot_columns[:10]:  # Show top 10
-            # Count from the pivot_groups column
-            pivot_name = col.replace('pivot_', '').replace('_', '-')
-            count = sum(1 for _, row in df.iterrows() 
-                       if row.get('pivot_groups', '') and pivot_name in row['pivot_groups'].split(', '))
-            print(f"  {pivot_name}: {count} files")
+
 
 def create_excel_analysis(csv_file_path=None, output_file_name=None):
     """
@@ -385,6 +364,8 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
         output_file_name (str): Base name for output file. Excel extension will be added.
                               If None, uses "toc_analysis.xlsx"
     """
+    # Check if debug mode is enabled
+    DEBUG = os.getenv("DEBUG", "False").lower() in ('true', '1', 'yes')
     try:
         import openpyxl
         from openpyxl.utils.dataframe import dataframe_to_rows
@@ -414,11 +395,12 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     # Merge engagement metrics if available and enabled
     merge_engagement = os.getenv("MERGE_ENGAGEMENT", "0") == "1"
     engagement_file = os.getenv("ENGAGEMENT_FILE")
-    print(f"Debug: MERGE_ENGAGEMENT env var = {os.getenv('MERGE_ENGAGEMENT')}")
-    print(f"Debug: merge_engagement = {merge_engagement}")
-    print(f"Debug: ENGAGEMENT_FILE = {engagement_file}")
-    if engagement_file:
-        print(f"Debug: File exists? {os.path.exists(engagement_file)}")
+    if DEBUG:
+        print(f"Debug: MERGE_ENGAGEMENT env var = {os.getenv('MERGE_ENGAGEMENT')}")
+        print(f"Debug: merge_engagement = {merge_engagement}")
+        print(f"Debug: ENGAGEMENT_FILE = {engagement_file}")
+        if engagement_file:
+            print(f"Debug: File exists? {os.path.exists(engagement_file)}")
     df_engage = None
     if merge_engagement and engagement_file and os.path.exists(engagement_file):
         try:
@@ -435,51 +417,64 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
                     # Remove commas and percentage signs, then convert to numeric
                     df_engage[col] = df_engage[col].astype(str).str.replace(',', '').str.replace('%', '')
                     df_engage[col] = pd.to_numeric(df_engage[col], errors='coerce')
-                    print(f"Converted {col} to numeric format (removed commas and %)")
+                    if DEBUG:
+                        print(f"Converted {col} to numeric format (removed commas and %)")
             
-            print("Normalizing engagement URLs...")
+            if DEBUG:
+                print("Normalizing engagement URLs...")
             df_engage["url_match"] = df_engage["Url"].apply(normalize_url)
-            print("\nFirst 5 engagement URLs and their normalized versions:")
-            print(df_engage[["Url", "url_match"]].head())
+            if DEBUG:
+                print("\nFirst 5 engagement URLs and their normalized versions:")
+                print(df_engage[["Url", "url_match"]].head())
         except Exception as e:
             print(f"Warning: Failed to read engagement file: {e}")
             df_engage = None
             
         if df_engage is not None:
             if "URL" in df.columns:
-                print("\nNormalizing main DataFrame URLs...")
+                if DEBUG:
+                    print("\nNormalizing main DataFrame URLs...")
                 df["url_match"] = df["URL"].apply(normalize_url)
-                print("\nFirst 5 TOC URLs and their normalized versions:")
-                print(df[["URL", "url_match"]].head())
-                print("\nAttempting merge on 'url_match' column...")
+                if DEBUG:
+                    print("\nFirst 5 TOC URLs and their normalized versions:")
+                    print(df[["URL", "url_match"]].head())
+                    print("\nAttempting merge on 'url_match' column...")
                 before_merge = len(df)
                 
                 # Debug: Show some stats before merge
-                print(f"\nUnique normalized URLs in engagement data: {df_engage['url_match'].nunique()}")
-                print(f"Unique normalized URLs in TOC data: {df['url_match'].nunique()}")
-                print("\nSample of URLs that should match:")
-                sample = df.merge(df_engage, left_on='url_match', right_on='url_match').head()
-                if not sample.empty:
-                    print(sample[['URL', 'Url', 'url_match']].head())
-                else:
-                    print("No matching URLs found!")
+                if DEBUG:
+                    print(f"\nUnique normalized URLs in engagement data: {df_engage['url_match'].nunique()}")
+                    print(f"Unique normalized URLs in TOC data: {df['url_match'].nunique()}")
+                    print("\nSample of URLs that should match:")
+                    sample = df.merge(df_engage, left_on='url_match', right_on='url_match').head()
+                    if not sample.empty:
+                        print(sample[['URL', 'Url', 'url_match']].head())
+                    else:
+                        print("No matching URLs found!")
                 
                 # Perform the merge
                 df = df.merge(df_engage.drop(columns=["Url"]), how="left", on="url_match")
                 after_merge = len(df)
-                print(f"\nMerge complete. Rows before: {before_merge}, after: {after_merge}")
+                
+                engagement_matches = df['PageViews'].notna().sum()
+                print(f"Engagement data merged: {engagement_matches} URLs matched")
+                if DEBUG:
+                    print(f"Merge complete. Rows before: {before_merge}, after: {after_merge}")
 
                 # Drop the temporary url_match column as it's no longer needed
                 df = df.drop(columns=["url_match"])
                 
                 # Debug: Show results
-                print("\nSample of merged data:")
-                print(df[['URL', 'PageViews']].head())
+                if DEBUG:
+                    print("\nSample of merged data:")
+                    print(df[['URL', 'PageViews']].head())
             else:
                 print("Main DataFrame missing 'URL' column!")
         else:
-            print("No engagement data available to merge")
-        print(df.head(10))
+            if DEBUG:
+                print("No engagement data available to merge")
+        if DEBUG:
+            print(df.head(10))
     
     # Check for pivot columns file
     df_pivots = None
@@ -510,7 +505,8 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
         
         # Reorder the dataframe
         df = df[final_column_order]
-        print(f"Reordered columns with {', '.join(special_columns)} in early positions")
+        if DEBUG:
+            print(f"Reordered columns with {', '.join(special_columns)} in early positions")
     
     # Create Excel file path using output file name
     if output_file_name:
@@ -679,7 +675,8 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
                 
                 # Add the table to the worksheet
                 ws.add_table(table)
-                print(f"Added Excel table formatting to '{sheet_name}' sheet")
+                if DEBUG:
+                    print(f"Added Excel table formatting to '{sheet_name}' sheet")
 
                 # Find URL column index
                 header_row = ws[1]
@@ -720,7 +717,8 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
                     
                     # Adjust table range to include new column
                     table.ref = f"A1:{ws.cell(max_row, max_col + 1).coordinate}"
-                    print(f"Added hyperlink column and hid URL column in '{sheet_name}' sheet")
+                    if DEBUG:
+                        print(f"Added hyperlink column and hid URL column in '{sheet_name}' sheet")
     
     # Format Summary tab (Content Summary)
     if summary_tab_name in wb.sheetnames:
