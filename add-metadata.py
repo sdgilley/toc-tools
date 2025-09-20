@@ -7,8 +7,8 @@ It then adds these metadata columns to the CSV and exports the enhanced data.
 The script creates:
 1. Main CSV file with comma-separated pivot_groups column
 
-Optional: Merges Notes, NextGen?, and NextGen TOC columns from existing Excel file if EXISTING_EXCEL_FILE is set.
-Optional: Merges engagement metrics if MERGE_ENGAGEMENT=1 and ENGAGEMENT_FILE is set.
+Optional: Merges Notes, NextGen?, and NextGen TOC columns from existing Excel file if MERGE_EXISTING and EXISTING_EXCEL_FILE is set.
+Optional: Merges engagement metrics if MERGE_ENGAGEMENT and ENGAGEMENT_FILE is set.
 
 Usage:
     python add-metadata.py
@@ -71,18 +71,43 @@ def add_metadata_to_csv():
         if DEBUG:
             print("No pivot mapping loaded")
     
+    # Get configurable metadata fields from environment
+    metadata_fields_config = os.getenv("METADATA_FIELDS", "ms.author,ms.topic,ms.service,description")
+    metadata_fields = [field.strip() for field in metadata_fields_config.split(',')]
+    
+    # Check if zone_pivot_groups is in metadata fields - if so, enable pivot processing
+    has_pivot_field = 'zone_pivot_groups' in metadata_fields
+    
+    metadata_flags_config = os.getenv("METADATA_FLAGS", "ms.custom:hub-only")
+    metadata_flags = {}
+    for field_config in metadata_flags_config.split(','):
+        if ':' in field_config:
+            field, flag_name = field_config.strip().split(':', 1)
+            metadata_flags[field.strip()] = flag_name.strip()
+    
+    if DEBUG:
+        print(f"Configured metadata fields: {metadata_fields}")
+        print(f"Pivot processing enabled: {has_pivot_field}")
+        print(f"Configured metadata flags: {metadata_flags}")
+    
     # Read the CSV file
     df = pd.read_csv(input_path)
     
-    # Add new columns for metadata
-    df['ms.author'] = ""
-    df['ms.topic'] = ""
-    df['ms.service'] = ""
-    df['description'] = ""
-    df['pivot_id'] = ""
-    df['has_pivots'] = False
-    df['pivot_groups'] = ""
-    df['hub-only'] = False
+    # Add new columns for metadata dynamically
+    for field in metadata_fields:
+        df[field] = ""
+    
+    # Add pivot-related columns only if zone_pivot_groups is in metadata fields
+    if has_pivot_field:
+        df['pivot_id'] = ""
+        df['has_pivots'] = False
+        df['pivot_groups'] = ""
+    
+    # Add metadata flag columns
+    for flag_name in metadata_flags.values():
+        df[flag_name] = False
+    
+    # Add system columns
     df['file_found'] = False
     
 
@@ -108,75 +133,71 @@ def add_metadata_to_csv():
             # Extract metadata from the file
             metadata = extract_front_matter(file_path)
             
-            # Extract specific fields
-            if 'ms.author' in metadata:
-                df.at[index, 'ms.author'] = metadata['ms.author']
+            # Extract configured metadata fields
+            for field in metadata_fields:
+                if field in metadata:
+                    df.at[index, field] = metadata[field]
             
-            if 'ms.topic' in metadata:
-                df.at[index, 'ms.topic'] = metadata['ms.topic']
-
-            if 'ms.service' in metadata:
-                df.at[index, 'ms.service'] = metadata['ms.service']
-        
-            if 'description' in metadata:
-                df.at[index, 'description'] = metadata['description']
-            
-            # Handle pivot groups
-            pivot_group_ids = None
-            if 'zone_pivot_groups' in metadata:
-                df.at[index, 'pivot_id'] = metadata['zone_pivot_groups']
-                pivot_group_ids = metadata['zone_pivot_groups']
-            elif 'pivot' in metadata:
-                df.at[index, 'pivot_id'] = metadata['pivot']
-                pivot_group_ids = metadata['pivot']
-            
-            # Set pivot group data (always use comma-separated for main file)
-            if pivot_group_ids:
-                pivot_groups = resolve_pivot_groups(pivot_group_ids, pivot_mapping)
+            # Handle pivot groups (only if zone_pivot_groups is in metadata fields)
+            if has_pivot_field:
+                pivot_group_ids = None
+                if 'zone_pivot_groups' in metadata:
+                    df.at[index, 'pivot_id'] = metadata['zone_pivot_groups']
+                    pivot_group_ids = metadata['zone_pivot_groups']
                 
-                # Set has_pivots flag
-                df.at[index, 'has_pivots'] = True
-                
-                # Always set the comma-separated column for main file
-                df.at[index, 'pivot_groups'] = ', '.join(pivot_groups) if pivot_groups else ""
+                # Set pivot group data (always use comma-separated for main file)
+                if pivot_group_ids:
+                    pivot_groups = resolve_pivot_groups(pivot_group_ids, pivot_mapping)
+                    
+                    # Set has_pivots flag
+                    df.at[index, 'has_pivots'] = True
+                    
+                    # Always set the comma-separated column for main file
+                    df.at[index, 'pivot_groups'] = ', '.join(pivot_groups) if pivot_groups else ""
                 
 
             
-            # Check for hub-only in ms.custom metadata
-            hub_only_found = False
-            
-            # Check 'ms.custom' field
-            if 'ms.custom' in metadata:
-                custom_data = metadata['ms.custom']
-                if isinstance(custom_data, str):
-                    # If ms.custom is a string, check if it contains 'hub-only'
-                    hub_only_found = 'hub-only' in custom_data.lower()
-                elif isinstance(custom_data, list):
-                    # If ms.custom is a list, check if any item contains 'hub-only'
-                    hub_only_found = any('hub-only' in str(item).lower() for item in custom_data)
-                elif isinstance(custom_data, dict):
-                    # If ms.custom is a dict, check if any value contains 'hub-only'
-                    hub_only_found = any('hub-only' in str(value).lower() for value in custom_data.values())
-            
-            # Set the hub-only flag
-            df.at[index, 'hub-only'] = hub_only_found
+            # Handle metadata fields with flag logic
+            for field_name, flag_name in metadata_flags.items():
+                if field_name in metadata:
+                    flag_found = False
+                    custom_data = metadata[field_name]
+                    
+                    if isinstance(custom_data, str):
+                        # If field is a string, check if it contains the flag
+                        flag_found = flag_name in custom_data.lower()
+                    elif isinstance(custom_data, list):
+                        # If field is a list, check if any item contains the flag
+                        flag_found = any(flag_name in str(item).lower() for item in custom_data)
+                    elif isinstance(custom_data, dict):
+                        # If field is a dict, check if any value contains the flag
+                        flag_found = any(flag_name in str(value).lower() for value in custom_data.values())
+                    
+                    # Set the flag
+                    df.at[index, flag_name] = flag_found
             
             processed_files += 1
     
-    # Merge existing Excel file data if available
+    # Merge existing Excel file data if available and enabled
+    merge_existing = os.getenv("MERGE_EXISTING", "False").lower() in ('true', '1', 'yes')
     existing_excel_file = os.getenv("EXISTING_EXCEL_FILE")
-    if existing_excel_file:
+    
+    if DEBUG:
+        print(f"Debug: MERGE_EXISTING = {merge_existing}")
+        print(f"Debug: EXISTING_EXCEL_FILE = '{existing_excel_file}'")
+    
+    if merge_existing and existing_excel_file:
         # Strip quotes and clean the path
         existing_excel_file = existing_excel_file.strip('"\'')
         if DEBUG:
-            print(f"Debug: EXISTING_EXCEL_FILE = '{existing_excel_file}'")
+            print(f"Debug: Cleaned EXISTING_EXCEL_FILE = '{existing_excel_file}'")
             print(f"Debug: File exists? {os.path.exists(existing_excel_file)}")
     
-    if existing_excel_file and os.path.exists(existing_excel_file) and openpyxl:
+    if merge_existing and existing_excel_file and os.path.exists(existing_excel_file) and openpyxl:
         try:
             print(f"Merging NextGen data from existing Excel file: {existing_excel_file}")
             
-            # Read the 'Complete Data' sheet from the existing Excel file
+            # Read the data sheet from the existing Excel file
             tab_name = os.getenv('EXISTING_FILE_TAB_NAME')
             if DEBUG:
                 print(f"[DEBUG] EXISTING_EXCEL_FILE: {existing_excel_file}")
@@ -206,35 +227,38 @@ def add_metadata_to_csv():
             if df_existing is not None and DEBUG:
                 print(f"[DEBUG] Columns found in loaded sheet: {list(df_existing.columns)}")
             
-            # Select only the columns we want to merge: URL + Notes + NextGen? + NextGen TOC
+            # Get merge columns from environment variable
             available_cols = list(df_existing.columns)
             if DEBUG:
                 print(f"Available columns in existing file: {available_cols}")
             
-            # Define columns we want to keep
-            desired_columns = ['URL', 'Notes', 'NextGen?', 'NextGen TOC']
+            # Define columns we want to keep from environment variable
+            merge_columns_config = os.getenv("MERGE_COLUMNS", "URL,Notes,NextGen?,NextGen TOC")
+            desired_columns = [col.strip() for col in merge_columns_config.split(',')]
             merge_columns = [col for col in desired_columns if col in available_cols]
             
-            if 'URL' in merge_columns and len(merge_columns) > 1:  # URL + at least one other column
+            key_column = desired_columns[0] if desired_columns else 'URL'  # First column is the key
+            if key_column in merge_columns and len(merge_columns) > 1:  # Key column + at least one other column
                 # Select columns and remove duplicates in one step
-                df_existing = df_existing[merge_columns].drop_duplicates(subset=['URL'], keep='first')
+                df_existing = df_existing[merge_columns].drop_duplicates(subset=[key_column], keep='first')
                 print(f"Merging data from existing Excel file - found {len(df_existing)} URLs with {', '.join(merge_columns[1:])} columns")
                 if DEBUG:
                     print(f"Keeping columns for merge: {merge_columns}")
                     print(f"Existing Excel file after deduplication: {len(df_existing)} unique URLs")
                     print(f"Current data has {len(df)} rows")
                 
-                # Drop any existing Notes/NextGen columns to avoid conflicts during merge
-                columns_to_drop = [col for col in ['Notes', 'NextGen?', 'NextGen TOC'] if col in df.columns]
+                # Drop any existing merge columns (except key column) to avoid conflicts during merge
+                key_column = desired_columns[0] if desired_columns else 'URL'  # First column is the key
+                columns_to_drop = [col for col in desired_columns[1:] if col in df.columns]  # Skip key column
                 if columns_to_drop and DEBUG:
                     df = df.drop(columns=columns_to_drop)
                     print(f"Dropped existing columns from current data: {columns_to_drop}")
                 elif columns_to_drop:
                     df = df.drop(columns=columns_to_drop)
                 
-                # Perform direct merge on URL column (no normalization needed)
+                # Perform direct merge on key column (no normalization needed)
                 before_merge = len(df)
-                df = df.merge(df_existing, how="left", on="URL")
+                df = df.merge(df_existing, how="left", on=key_column)
                 after_merge = len(df)
                 
                 if DEBUG:
@@ -243,9 +267,9 @@ def add_metadata_to_csv():
                 # Show sample of merged data
                 try:
                     merged_data_summary = []
-                    sample_cols = ['URL'] + [col for col in merge_columns[1:] if col in df.columns]
+                    sample_cols = [key_column] + [col for col in merge_columns[1:] if col in df.columns]
                     
-                    for col in merge_columns[1:]:  # Skip URL
+                    for col in merge_columns[1:]:  # Skip key column
                         if col in df.columns:
                             count = df[col].notna().sum()
                             merged_data_summary.append(f"{col}: {count} URLs")
@@ -262,10 +286,10 @@ def add_metadata_to_csv():
                         else:
                             print("No non-null values found in merged columns")
                 
-                    # Reorder columns to put Notes and NextGen columns early
-                    special_columns = [col for col in merge_columns[1:] if col in df.columns]
+                    # Reorder columns to put merged columns early
+                    special_columns = [col for col in merge_columns[1:] if col in df.columns]  # Skip key column
                     if special_columns:
-                        base_columns = ['Parent Path', 'Name', 'filename', 'URL']
+                        base_columns = ['Parent Path', 'Name', 'filename', key_column]
                         other_columns = [col for col in df.columns if col not in base_columns + special_columns]
                         final_column_order = base_columns + special_columns + other_columns
                         df = df[final_column_order]
@@ -280,14 +304,16 @@ def add_metadata_to_csv():
                 print(f"Warning: No mergeable columns found in existing Excel file")
                 if DEBUG:
                     print(f"Available columns: {available_cols}")
-                    print(f"Looking for: URL (required) and any of: Notes, NextGen?, NextGen TOC")
-                    print(f"'URL' found: {'URL' in available_cols}")
-                    print(f"'Notes' found: {'Notes' in available_cols}")
-                    print(f"'NextGen?' found: {'NextGen?' in available_cols}")
-                    print(f"'NextGen TOC' found: {'NextGen TOC' in available_cols}")
+                    print(f"Looking for configured merge columns: {', '.join(desired_columns)}")
+                    print(f"Key column '{key_column}' found: {key_column in available_cols}")
+                    for col in desired_columns[1:]:  # Skip key column
+                        print(f"'{col}' found: {col in available_cols}")
                 
         except Exception as e:
             print(f"Error reading existing Excel file: {e}")
+    elif not merge_existing and existing_excel_file:
+        if DEBUG:
+            print("Skipping existing Excel file merge (MERGE_EXISTING=False)")
     elif existing_excel_file and not os.path.exists(existing_excel_file):
         print(f"Warning: Existing Excel file not found: {existing_excel_file}")
     elif existing_excel_file and not openpyxl:
@@ -305,50 +331,52 @@ def add_metadata_to_csv():
 
     print(f"Main CSV saved to: {output_path}")
     
-    # Show some statistics
-    authors = df[df['ms.author'] != '']['ms.author'].value_counts()
-    topics = df[df['ms.topic'] != '']['ms.topic'].value_counts()
-    services = df[df['ms.service'] != '']['ms.service'].value_counts()
-    pivots = df[df['pivot_id'] != '']['pivot_id'].value_counts()
-    
+    # Show statistics for configured metadata fields
     print(f"\nMetadata Statistics:")
-    print(f"Files with ms.author: {len(df[df['ms.author'] != ''])}")
-    print(f"Files with ms.topic: {len(df[df['ms.topic'] != ''])}")
-    print(f"Files with ms.service: {len(df[df['ms.service'] != ''])}")
-    print(f"Files with description: {len(df[df['description'] != ''])}")
-    print(f"Files with pivot_id: {len(df[df['pivot_id'] != ''])}")
-    print(f"Files with has_pivots: {len(df[df['has_pivots'] == True])}")
-    print(f"Files with pivot groups: {len(df[df['pivot_groups'] != ''])}")
-    print(f"Files with hub-only: {len(df[df['hub-only'] == True])}")
+    
+    # Statistics for regular metadata fields
+    for field in metadata_fields:
+        if field in df.columns:
+            count = len(df[df[field].notna() & (df[field] != '')])
+            print(f"Files with {field}: {count}")
+    
+    # Statistics for pivot fields (only if zone_pivot_groups is in metadata fields)
+    if has_pivot_field and 'pivot_id' in df.columns:
+        pivots = df[df['pivot_id'] != '']['pivot_id'].value_counts()
+        print(f"Files with pivot_id: {len(df[df['pivot_id'] != ''])}")
+        print(f"Files with has_pivots: {len(df[df['has_pivots'] == True])}")
+        print(f"Files with pivot groups: {len(df[df['pivot_groups'] != ''])}")
+    else:
+        pivots = pd.Series(dtype=object)  # Empty series for debug section
+    
+    # Statistics for metadata flags
+    for flag_name in metadata_flags.values():
+        if flag_name in df.columns:
+            count = len(df[df[flag_name] == True])
+            print(f"Files with {flag_name}: {count}")
     
     if DEBUG:
-        if len(authors) > 0:
-            print(f"\nTop 5 authors:")
-            for author, count in authors.head().items():
-                print(f"  {author}: {count} files")
-        
-        if len(topics) > 0:
-            print(f"\nTop 5 topics:")
-            for topic, count in topics.head().items():
-                print(f"  {topic}: {count} files")
-
-        if len(services) > 0:
-            print(f"\nms.service:")
-            for service, count in services.items():
-                print(f"  {service}: {count} files")
+        # Show detailed breakdowns for first few metadata fields
+        for field in metadata_fields[:3]:  # Limit to first 3 to avoid too much output
+            if field in df.columns:
+                field_values = df[df[field].notna() & (df[field] != '')][field].value_counts()
+                if len(field_values) > 0:
+                    print(f"\nTop 5 {field} values:")
+                    for value, count in field_values.head().items():
+                        print(f"  {value}: {count} files")
             
-    if DEBUG:
-        if len(pivots) > 0:
+        if has_pivot_field and len(pivots) > 0:
             print(f"\nPivot group IDs found:")
             for pivot, count in pivots.head(10).items():
                 print(f"  {pivot}: {count} files")
         
-        # Show resolved pivot group names from comma-separated column
-        pivot_group_names = df[df['pivot_groups'] != '']['pivot_groups'].value_counts()
-        if len(pivot_group_names) > 0:
-            print(f"\nResolved pivot group names:")
-            for group_name, count in pivot_group_names.head(10).items():
-                print(f"  {group_name}: {count} files")
+        # Show resolved pivot group names from comma-separated column (only if pivot columns exist)
+        if has_pivot_field and 'pivot_groups' in df.columns:
+            pivot_group_names = df[df['pivot_groups'] != '']['pivot_groups'].value_counts()
+            if len(pivot_group_names) > 0:
+                print(f"\nResolved pivot group names:")
+                for group_name, count in pivot_group_names.head(10).items():
+                    print(f"  {group_name}: {count} files")
     
     return df  # Return main dataframe only
     
@@ -393,7 +421,7 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     # URL normalization already imported at top of file
 
     # Merge engagement metrics if available and enabled
-    merge_engagement = os.getenv("MERGE_ENGAGEMENT", "0") == "1"
+    merge_engagement = os.getenv("MERGE_ENGAGEMENT", "False").lower() in ('true', '1', 'yes')
     engagement_file = os.getenv("ENGAGEMENT_FILE")
     if DEBUG:
         print(f"Debug: MERGE_ENGAGEMENT env var = {os.getenv('MERGE_ENGAGEMENT')}")
@@ -484,15 +512,19 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     #     df_pivots = pd.read_csv(pivot_file_path)
     
     
-    # Reorder columns to ensure Notes and NextGen columns are in early positions
+    # Reorder columns to ensure merged columns are in early positions
+    merge_columns_config = os.getenv("MERGE_COLUMNS", "URL,Notes,NextGen?,NextGen TOC")
+    desired_merge_columns = [col.strip() for col in merge_columns_config.split(',')]
+    key_column = desired_merge_columns[0] if desired_merge_columns else 'URL'
+    
     special_columns = []
-    for col in ['Notes', 'NextGen', 'NextGen?', 'NextGen TOC']:
+    for col in desired_merge_columns[1:]:  # Skip key column
         if col in df.columns:
             special_columns.append(col)
     
     if special_columns:
         # Define desired column order
-        base_columns = ['Parent Path', 'Name', 'filename', 'URL']  # First 4 columns (A-D)
+        base_columns = ['Parent Path', 'Name', 'filename', key_column]  # First 4 columns (A-D)
         
         # Get all other columns except the base ones and special columns
         other_columns = [col for col in df.columns if col not in base_columns + special_columns]
@@ -522,18 +554,6 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
         # Tab: Complete data
         print("Creating Tab: Complete Data")
         df.to_excel(writer, sheet_name='Complete Data', index=False)
-        
-        # Tab: Hub-only and hub-project articles
-        print("Creating Tab: Hub Articles")
-        # Handle pivot_groups column safely
-        pivot_filter = False
-        if 'pivot_groups' in df.columns:
-            pivot_series = df['pivot_groups'].astype(str)
-            pivot_filter = pivot_series.str.contains('hub-project', na=False)
-        
-        hub_filter = (df['hub-only'] == True) | pivot_filter
-        hub_df = df[hub_filter]
-        hub_df.to_excel(writer, sheet_name='Hub Articles', index=False)
         
         # # Tab: Pivot columns (if available)
         # if df_pivots is not None:
@@ -646,7 +666,7 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     wb = openpyxl.load_workbook(excel_file_path)
     
     # Convert data sheets to Excel tables (for filtering and sorting)
-    data_sheets = ['Complete Data', 'Hub Articles']
+    data_sheets = ['Complete Data']
     for sheet_name in data_sheets:
         if sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
@@ -766,12 +786,11 @@ def create_excel_analysis(csv_file_path=None, output_file_name=None):
     
     print(f"\nExcel analysis file created: {excel_file_path}")
     print(f"Tab 1: Complete Data ({len(df)} rows)")
-    print(f"Tab 2: Hub Articles ({len(hub_df)} rows)")
     # if df_pivots is not None:
     #     print(f"Tab 3: Pivot Columns ({len(df_pivots)} rows with individual pivot boolean columns)")
     #     print(f"Tab 4: Content Summary with statistics tables")
     # else:
-    print(f"Tab 3: Content Summary with statistics tables")
+    print(f"Tab 2: Content Summary with statistics tables")
     
     return excel_file_path
 

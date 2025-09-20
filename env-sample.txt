@@ -10,6 +10,33 @@ BASE_PATH=C:/git/azure-ai-docs-pr/articles/
 # Set this for merging existing NextGen data
 EXISTING_EXCEL_FILE=
 
+##########################################################
+#### ADVANCED CONFIGURATION FOR METADATA EXTRACTION ####
+# Metadata fields to extract (comma-separated) - controls which YAML front matter fields to include
+# Format: "field1,field2,field3" - each field becomes a column in output
+# Example alternatives: "author,title,category,tags" or "ms.author,ms.date,ms.reviewer"
+METADATA_FIELDS="ms.author,ms.topic,ms.service,description"
+
+# NOTE: Pivot processing is automatic - if "zone_pivot_groups" is included in METADATA_FIELDS above, 
+# pivot logic is enabled and pivot columns (pivot_id, has_pivots, pivot_groups) are added
+
+# Metadata flags with special processing (comma-separated)
+# Format: "field1:flag_name,field2:flag_name" - creates boolean flags based on field content
+# Example: "ms.custom:hub-only" creates hub-only flag if ms.custom contains "hub-only"  
+METADATA_FLAGS="ms.custom:hub-only"
+
+# Control script behavior with True/False flags
+DEBUG=True
+MERGE_ENGAGEMENT=False 
+MERGE_EXISTING=True
+
+# Merging columns configuration (comma-separated)
+# Format: "KeyColumn,DataColumn1,DataColumn2,DataColumn3"
+# Example: "URL,Notes,NextGen?,NextGen TOC" or "Href,Status,Priority,Owner"
+MERGE_COLUMNS="URL,Notes,NextGen?,NextGen TOC"
+
+##########################################################
+#### OPTIONAL SETTINGS FOR DEBUGGING INDEPENDENT STEPS ####
 # Use these files when running scripts separately:
 METADATA_FILE=foundry-toc.csv
 METADATA_OUTPUT_FILE=foundry-toc.csv

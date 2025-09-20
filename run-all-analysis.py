@@ -106,7 +106,6 @@ def show_output_files():
     
     files_to_check = [
         (base_output_file, "Complete TOC with all analysis (build + metadata + content)"),
-        (base_output_file.replace('.csv', '-pivots.csv'), "Pivot groups (if created)"),
         (base_output_file.replace('.csv', '.xlsx'), "Excel analysis file (if created)")
     ]
     
