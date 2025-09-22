@@ -49,8 +49,8 @@ flattened_toc = f.flatten_toc(toc_items, url_path, base_toc_dir=toc_dir, toc_rel
 # Convert the flattened TOC to a DataFrame
 toc_df = pd.DataFrame(flattened_toc)
 # remove rows without an href value or blank href value
-toc_df = toc_df[toc_df['Href'].str.strip() != ""]
-toc_df = toc_df[toc_df['Href'].notna()]
+toc_df = toc_df[toc_df['filename'].str.strip() != ""]
+toc_df = toc_df[toc_df['filename'].notna()]
 # Write to the output CSV file
 toc_df.to_csv(file_path, index=False)
 

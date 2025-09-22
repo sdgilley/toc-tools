@@ -18,98 +18,40 @@ import pandas as pd
 import os
 import dotenv
 import sys
+import logging
 from pathlib import Path
-from utils.file_utils import extract_front_matter, resolve_file_path, load_pivot_mapping, resolve_pivot_groups
+from typing import Dict, List, Tuple, Optional, Any
+from utils.file_utils import extract_front_matter, resolve_file_path, load_pivot_mapping, resolve_pivot_groups, parse_metadata_from_content
 from utils.url_normalizer import normalize_url
+from utils.config_utils import setup_logging, load_configuration
+from utils.stats_utils import generate_statistics
+from utils.excel_utils import merge_external_data
 try:
     import openpyxl
 except ImportError:
     openpyxl = None
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Load environment variables from .env file
 dotenv.load_dotenv()
 
-def load_configuration():
-    """
-    Load and validate all configuration from environment variables.
-    
-    Returns:
-        dict: Configuration dictionary with all required settings
-    """
-    # Check if debug mode is enabled
-    DEBUG = os.getenv("DEBUG", "False").lower() in ('true', '1', 'yes')
-    
-    # Get basic configuration from environment variables
-    input_file = os.getenv("METADATA_FILE", "toc.csv")
-    base_path = os.getenv("BASE_PATH")
-    output_file = os.getenv("METADATA_OUTPUT_FILE", "toc_with_metadata.csv")
-    pivot_map_file = os.getenv("PIVOT_MAP_FILE")
-    
-    # Validate required configuration
-    if not base_path:
-        raise ValueError("Error: BASE_PATH environment variable not set. Please set it to the root directory of your documentation.")
-    
-    # Get the directory of the current script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_path = os.path.join(script_dir, input_file)
-    output_path = os.path.join(script_dir, output_file)
-    
-    # Check if input file exists
-    if not os.path.exists(input_path):
-        raise FileNotFoundError(f"Input file {input_path} not found.")
-    
-    # Get configurable metadata fields from environment
-    metadata_fields_config = os.getenv("METADATA_FIELDS", "ms.author,ms.topic,ms.service,description")
-    metadata_fields = [field.strip() for field in metadata_fields_config.split(',')]
-    
-    # Check if zone_pivot_groups is in metadata fields - if so, enable pivot processing
-    has_pivot_field = 'zone_pivot_groups' in metadata_fields
-    
-    # Parse metadata flags configuration
-    metadata_flags_config = os.getenv("METADATA_FLAGS", "ms.custom:hub-only")
-    metadata_flags = {}
-    if metadata_flags_config.strip():  # Only process if not empty
-        for field_config in metadata_flags_config.split(','):
-            if ':' in field_config:
-                field, flag_name = field_config.strip().split(':', 1)
-                metadata_flags[field.strip()] = flag_name.strip()
-    
-    config = {
-        'DEBUG': DEBUG,
-        'input_file': input_file,
-        'base_path': base_path,
-        'output_file': output_file,
-        'pivot_map_file': pivot_map_file,
-        'script_dir': script_dir,
-        'input_path': input_path,
-        'output_path': output_path,
-        'metadata_fields': metadata_fields,
-        'has_pivot_field': has_pivot_field,
-        'metadata_flags': metadata_flags
-    }
-    
-    if DEBUG:
-        print(f"Reading CSV file: {input_path}")
-        print(f"Base path for files: {base_path}")
-        print(f"Configured metadata fields: {metadata_fields}")
-        print(f"Pivot processing enabled: {has_pivot_field}")
-        print(f"Configured metadata flags: {metadata_flags}")
-    
-    return config
 
-def process_metadata_extraction(df, config, pivot_mapping):
+
+def process_metadata_extraction(df: pd.DataFrame, config: Dict[str, Any], pivot_mapping: Dict[str, Any]) -> Tuple[int, int]:
     """
     Process each row in the dataframe to extract metadata from markdown files.
     
     Args:
-        df (pd.DataFrame): The dataframe to process
-        config (dict): Configuration dictionary
-        pivot_mapping (dict): Pivot group mappings
+        df: The dataframe to process
+        config: Configuration dictionary containing paths and settings
+        pivot_mapping: Pivot group mappings for resolving zone pivot groups
         
     Returns:
-        tuple: (processed_files, found_files) counts
+        Tuple of (processed_files, found_files) counts
     """
-    DEBUG = config['DEBUG']
+    DEBUG = config.get('DEBUG', config.get('debug', False))
     base_path = config['base_path']
     metadata_fields = config['metadata_fields']
     has_pivot_field = config['has_pivot_field']
@@ -120,10 +62,10 @@ def process_metadata_extraction(df, config, pivot_mapping):
     found_files = 0
     
     for index, row in df.iterrows():
-        href = row.get('Href', '')
+        href = row.get('filename', '')
         
         if DEBUG and index % 50 == 0:  # Progress indicator
-            print(f"Processing row {index + 1}/{total_rows}")
+            logger.debug(f"Processing row {index + 1}/{total_rows}")
         
         # Resolve the file path
         file_path = resolve_file_path(href, base_path)
@@ -155,7 +97,7 @@ def process_metadata_extraction(df, config, pivot_mapping):
                     df.at[index, 'has_pivots'] = True
                     
                     # Always set the comma-separated column for main file
-                    df.at[index, 'pivot_groups'] = ', '.join(pivot_groups) if pivot_groups else ""
+                    df.at[index, 'pivot_groups'] = ','.join(pivot_groups) if pivot_groups else ""
                 
             # Handle metadata fields with flag logic
             for field_name, flag_name in metadata_flags.items():
@@ -180,189 +122,42 @@ def process_metadata_extraction(df, config, pivot_mapping):
     
     return processed_files, found_files
 
-def generate_statistics(df, config, processed_files, found_files):
-    """
-    Generate and print statistics about the processed data.
-    
-    Args:
-        df (pd.DataFrame): The processed dataframe
-        config (dict): Configuration dictionary
-        processed_files (int): Number of files processed
-        found_files (int): Number of files found
-    """
-    DEBUG = config['DEBUG']
-    metadata_fields = config['metadata_fields']
-    has_pivot_field = config['has_pivot_field']
-    metadata_flags = config['metadata_flags']
-    
-    total_rows = len(df)
-    
-    print(f"\nProcessing complete!")
-    print(f"Total rows: {total_rows}")
-    print(f"Files found: {found_files}")
-    print(f"Files processed: {processed_files}")
-    print(f"Main CSV saved to: {config['output_path']}")
-    
-    # Show statistics for configured metadata fields
-    print(f"\nMetadata Statistics:")
-    
-    # Statistics for regular metadata fields
-    for field in metadata_fields:
-        if field in df.columns:
-            count = len(df[df[field].notna() & (df[field] != '')])
-            print(f"Files with {field}: {count}")
-    
-    # Statistics for pivot fields (only if zone_pivot_groups is in metadata fields)
-    if has_pivot_field and 'pivot_id' in df.columns:
-        pivots = df[df['pivot_id'] != '']['pivot_id'].value_counts()
-        print(f"Files with pivot_id: {len(df[df['pivot_id'] != ''])}")
-        print(f"Files with has_pivots: {len(df[df['has_pivots'] == True])}")
-        print(f"Files with pivot groups: {len(df[df['pivot_groups'] != ''])}")
-    else:
-        pivots = pd.Series(dtype=object)  # Empty series for debug section
-    
-    # Statistics for metadata flags
-    for flag_name in metadata_flags.values():
-        if flag_name in df.columns:
-            count = len(df[df[flag_name] == True])
-            print(f"Files with {flag_name}: {count}")
-    
-    if DEBUG:
-        # Show detailed breakdowns for first few metadata fields
-        for field in metadata_fields[:3]:  # Limit to first 3 to avoid too much output
-            if field in df.columns:
-                field_values = df[df[field].notna() & (df[field] != '')][field].value_counts()
-                if len(field_values) > 0:
-                    print(f"\nTop {field} values:")
-                    for value, count in field_values.head().items():
-                        print(f"  {value}: {count} files")
-            
-        if has_pivot_field and len(pivots) > 0:
-            print(f"\nPivot group IDs found:")
-            for pivot, count in pivots.head(10).items():
-                print(f"  {pivot}: {count} files")
-        
-        # Show resolved pivot group names from comma-separated column (only if pivot columns exist)
-        if has_pivot_field and 'pivot_groups' in df.columns:
-            pivot_group_names = df[df['pivot_groups'] != '']['pivot_groups'].value_counts()
-            if len(pivot_group_names) > 0:
-                print(f"\nResolved pivot group names:")
-                for group_name, count in pivot_group_names.head(10).items():
-                    print(f"  {group_name}: {count} files")
 
-def merge_external_data(df, config):
-    """
-    Merge existing Excel file data if available and enabled.
-    
-    Args:
-        df (pd.DataFrame): The dataframe to merge data into
-        config (dict): Configuration dictionary
-    
-    Returns:
-        pd.DataFrame: The dataframe with merged data
-    """
-    DEBUG = config['DEBUG']
-    
-    # Merge existing Excel file data if available and enabled
-    merge_existing = os.getenv("MERGE_EXISTING", "False").lower() in ('true', '1', 'yes')
-    existing_excel_file = os.getenv("EXISTING_EXCEL_FILE")
-    
-    if DEBUG:
-        print(f"Debug: MERGE_EXISTING = {merge_existing}")
-        print(f"Debug: EXISTING_EXCEL_FILE = '{existing_excel_file}'")
-    
-    if merge_existing and existing_excel_file:
-        # Strip quotes and clean the path
-        existing_excel_file = existing_excel_file.strip('"\'')
-        if DEBUG:
-            print(f"Debug: Cleaned EXISTING_EXCEL_FILE = '{existing_excel_file}'")
-            print(f"Debug: File exists? {os.path.exists(existing_excel_file)}")
-    
-    if merge_existing and existing_excel_file and os.path.exists(existing_excel_file) and openpyxl:
-        try:
-            print(f"Merging data from existing Excel file: {existing_excel_file}")
-            
-            # Read the data sheet from the existing Excel file
-            tab_name = os.getenv('EXISTING_FILE_TAB_NAME')
-            if DEBUG:
-                print(f"[DEBUG] EXISTING_EXCEL_FILE: {existing_excel_file}")
-                print(f"[DEBUG] EXISTING_FILE_TAB_NAME: {tab_name}")
-            if tab_name and DEBUG:
-                print(f"[DEBUG] Using tab name from env: {tab_name}")
-            else:
-                tab_name = 'Current Docs'  # Default sheet name
-                if DEBUG:
-                    print("[DEBUG] No tab name specified in env, using default sheet 'Current Docs'.")
 
-            df_existing = pd.read_excel(existing_excel_file, sheet_name=tab_name)
-            
-            # Get merge columns from configuration
-            merge_columns_config = os.getenv("MERGE_COLUMNS", "URL,Notes,NextGen?,NextGen TOC")
-            available_cols = df_existing.columns.tolist()
-            desired_columns = [col.strip() for col in merge_columns_config.split(',')]
-            merge_columns = [col for col in desired_columns if col in available_cols]
-            
-            key_column = desired_columns[0] if desired_columns else 'URL'  # First column is the key
-            if key_column in merge_columns and len(merge_columns) > 1:  # Key column + at least one other column
-                # Select columns and remove duplicates in one step
-                df_existing = df_existing[merge_columns].drop_duplicates(subset=[key_column], keep='first')
-                print(f"Merging data from existing Excel file - found {len(df_existing)} URLs with {', '.join(merge_columns[1:])} columns")
-                if DEBUG:
-                    print(f"Keeping columns for merge: {merge_columns}")
-                    print(f"Existing Excel file after deduplication: {len(df_existing)} unique URLs")
-                    print(f"Current data has {len(df)} rows")
-                
-                # Drop any existing merge columns (except key column) to avoid conflicts during merge
-                key_column = desired_columns[0] if desired_columns else 'URL'  # First column is the key
-                columns_to_drop = [col for col in desired_columns[1:] if col in df.columns]  # Skip key column
-                if columns_to_drop and DEBUG:
-                    df = df.drop(columns=columns_to_drop)
-                    print(f"Dropped existing columns from current data: {columns_to_drop}")
-                elif columns_to_drop:
-                    df = df.drop(columns=columns_to_drop)
-                
-                # Merge the data
-                df = df.merge(df_existing, on=key_column, how='left')
-                merged_count = df[merge_columns[1]].notna().sum() if len(merge_columns) > 1 else 0
-                print(f"Successfully merged existing data: {merged_count} URLs matched")
-            else:
-                if DEBUG:
-                    print(f"Cannot merge - missing required columns")
-                    print(f"Available columns in Excel: {available_cols}")
-                    print(f"Looking for configured merge columns: {', '.join(desired_columns)}")
-                    print(f"Key column '{key_column}' found: {key_column in available_cols}")
-                    for col in desired_columns[1:]:  # Skip key column
-                        print(f"'{col}' found: {col in available_cols}")
-                
-        except Exception as e:
-            print(f"Error reading existing Excel file: {e}")
-    elif not merge_existing and existing_excel_file:
-        if DEBUG:
-            print("Skipping existing Excel file merge (MERGE_EXISTING=False)")
-    elif existing_excel_file and not os.path.exists(existing_excel_file):
-        print(f"Warning: Existing Excel file not found: {existing_excel_file}")
-    elif existing_excel_file and not openpyxl:
-        print("Warning: openpyxl not available for reading Excel files")
-    
-    return df
 
-def add_metadata_to_csv():
+
+def add_metadata_to_csv() -> None:
     """
     Main function to read CSV, extract metadata, and create enhanced CSV.
+    
+    This orchestrates the complete workflow:
+    1. Load configuration from environment variables
+    2. Setup logging 
+    3. Load pivot mappings
+    4. Read input CSV
+    5. Process metadata extraction
+    6. Merge external data if configured
+    7. Generate statistics and save output
+    
+    Raises:
+        SystemExit: If configuration is invalid or processing fails
     """
     try:
         # Load and validate configuration
         config = load_configuration()
-        DEBUG = config['DEBUG']
+        DEBUG = config.get('DEBUG', config.get('debug', False))
+        
+        # Setup logging
+        setup_logging(DEBUG)
         
         # Load pivot mapping
         pivot_mapping = load_pivot_mapping(config['pivot_map_file'])
         if pivot_mapping:
             if DEBUG:
-                print(f"Loaded {len(pivot_mapping)} pivot groups from: {config['pivot_map_file']}")
+                logger.debug(f"Loaded {len(pivot_mapping)} pivot groups from: {config['pivot_map_file']}")
         else:
             if DEBUG:
-                print("No pivot mapping loaded")
+                logger.debug("No pivot mapping loaded")
         
         # Read the CSV file
         df = pd.read_csv(config['input_path'])
@@ -400,10 +195,10 @@ def add_metadata_to_csv():
         return df  # Return main dataframe only
         
     except (ValueError, FileNotFoundError) as e:
-        print(f"Configuration error: {e}")
+        logger.error(f"Configuration error: {e}")
         return None
     except Exception as e:
-        print(f"Unexpected error during metadata processing: {e}")
+        logger.error(f"Unexpected error during metadata processing: {e}")
         return None
 
 def create_excel_analysis(csv_file_path=None, output_file_name=None):

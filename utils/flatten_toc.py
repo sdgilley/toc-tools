@@ -199,7 +199,7 @@ def flatten_toc(items, url_path, parent_path="", base_toc_dir="", toc_relative_d
             rows.append({
                 "Parent Path": parent_path,
                 "Name": name,
-                "Href": processed_href,
+                "filename": processed_href,
                 "URL": full_url,
                 "Is External": is_external
             })

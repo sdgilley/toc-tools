@@ -1,0 +1,7 @@
+pivot-group-1:
+  - value1
+  - value2
+test-group:
+  - option-a
+  - option-b
+  - option-c

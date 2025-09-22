@@ -7,17 +7,18 @@ import pandas as pd
 import os
 import re
 import yaml
+from typing import Dict, List, Tuple, Optional, Any, Union
 
-def resolve_file_path(href, base_path):
+def resolve_file_path(href: str, base_path: str) -> Optional[str]:
     """
     Resolve the full file path based on href and base path.
     
     Args:
-        href (str): The href value from the CSV
-        base_path (str): Base path to resolve relative paths
+        href: The href value from the CSV
+        base_path: Base path to resolve relative paths
         
     Returns:
-        str: Full path to the file, or None if file doesn't exist
+        Full path to the file, or None if file doesn't exist
     """
     # Handle NaN/None values
     if pd.isna(href) or not href or str(href).strip() == "":
@@ -65,15 +66,15 @@ def resolve_file_path(href, base_path):
     
     return None
 
-def extract_front_matter(file_path):
+def extract_front_matter(file_path: str) -> Dict[str, Any]:
     """
     Extract YAML front matter from a markdown file.
     
     Args:
-        file_path (str): Path to the markdown file
+        file_path: Path to the markdown file
         
     Returns:
-        dict: Dictionary containing the front matter metadata, or empty dict if none found
+        Dictionary containing the front matter metadata, or empty dict if none found
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -100,6 +101,7 @@ def extract_front_matter(file_path):
         return metadata if metadata else {}
         
     except Exception as e:
+        # Note: Using print instead of logger to avoid circular import issues
         print(f"Error reading file {file_path}: {e}")
         return {}
 
@@ -124,37 +126,63 @@ def read_file_content(file_path):
         return content
         
     except Exception as e:
+        # Note: Using print instead of logger to avoid circular import issues  
         print(f"Error reading file {file_path}: {e}")
         return ""
 
-def load_pivot_mapping(pivot_map_file):
+def load_pivot_mapping(pivot_map_file: Optional[str]) -> Optional[Dict[str, Any]]:
     """
     Load pivot group mapping from YAML file.
-    
+
+    Supports two common formats:
+    - Simple mapping where top-level keys are group ids and values are lists of pivot ids (fixture format)
+    - A more structured format with a top-level 'groups' list of objects with 'id' and 'pivots'
+
     Args:
-        pivot_map_file (str): Path to the zone-pivot-groups.yml file
+        pivot_map_file: Path to the YAML pivot mapping file
         
     Returns:
-        dict: Dictionary mapping pivot group IDs to their details
+        Dict mapping group id to list of pivot ids or group details, None if file not found
     """
     if not pivot_map_file or not os.path.exists(pivot_map_file):
+        # Note: Using print instead of logger to avoid circular import issues
+        # Consider passing logger as parameter for better logging
         print(f"Pivot map file not found: {pivot_map_file}")
-        return {}
-    
+        return None
+
     try:
         with open(pivot_map_file, 'r', encoding='utf-8') as file:
             content = yaml.safe_load(file)
-        
-        # Create a mapping from group ID to group details
+
+        # If YAML is a simple mapping of id -> list, return it directly
+        if isinstance(content, dict):
+            # Normalize values to lists for consistency
+            normalized = {}
+            for key, value in content.items():
+                if isinstance(value, list):
+                    normalized[key] = value
+                else:
+                    # Wrap single values into a list
+                    normalized[key] = [value]
+            return normalized
+
+        # If YAML uses 'groups' format, convert to mapping
         pivot_mapping = {}
-        if content and 'groups' in content:
+        if content and isinstance(content, dict) and 'groups' in content:
             for group in content['groups']:
                 if 'id' in group:
-                    pivot_mapping[group['id']] = group
-        
+                    pivots = []
+                    if 'pivots' in group and isinstance(group['pivots'], list):
+                        for pivot in group['pivots']:
+                            if isinstance(pivot, dict) and 'id' in pivot:
+                                pivots.append(pivot['id'])
+                            elif isinstance(pivot, str):
+                                pivots.append(pivot)
+                    pivot_mapping[group['id']] = pivots
         return pivot_mapping
-        
+
     except Exception as e:
+        # Note: Using print instead of logger to avoid circular import issues
         print(f"Error loading pivot mapping file {pivot_map_file}: {e}")
         return {}
 
@@ -180,16 +208,41 @@ def resolve_pivot_groups(pivot_ids, pivot_mapping):
     for group_id in group_ids:
         if group_id in pivot_mapping:
             group = pivot_mapping[group_id]
-            # Get the pivots list from this group
-            if 'pivots' in group:
+            # Handle both structured format (dict with 'pivots' key) and simple format (list)
+            if isinstance(group, list):
+                # Simple format: group is directly a list of pivot IDs
+                all_pivot_ids.extend(group)
+            elif isinstance(group, dict) and 'pivots' in group:
+                # Structured format: group is dict with 'pivots' key
                 for pivot in group['pivots']:
                     if 'id' in pivot:
                         all_pivot_ids.append(pivot['id'])
             else:
-                # If no pivots found, use the group ID as fallback
+                # Fallback: use the group ID as-is
                 all_pivot_ids.append(group_id)
         else:
             # If group not found in mapping, use the ID as-is
             all_pivot_ids.append(group_id)
     
     return all_pivot_ids
+
+def parse_metadata_from_content(content):
+    """
+    Parse YAML front matter from a string of markdown content and return metadata dict.
+
+    This mirrors the behavior of `extract_front_matter` but operates on the
+    already-read content so tests can validate parsing without file I/O.
+    """
+    try:
+        if not content or not str(content).startswith('---'):
+            return {}
+
+        end_match = re.search(r'\n---\s*\n', content)
+        if not end_match:
+            return {}
+
+        yaml_content = content[3:end_match.start()]
+        metadata = yaml.safe_load(yaml_content)
+        return metadata if metadata else {}
+    except Exception:
+        return {}
